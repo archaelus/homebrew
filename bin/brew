@@ -60,7 +60,7 @@ begin
         exec "find", *ARGV.kegs+%w[-not -type d -print]
       end
 
-    when 'avail', 'available'
+    when 'search', '-S'
       formulae = (HOMEBREW_PREFIX+'Library'+'Formula').children.sort.map{|f| f.basename('.rb') }
       puts_columns formulae.grep(Regexp.new(ARGV.first || ''))
 
@@ -75,7 +75,7 @@ begin
 
     when 'install'
       if ARGV.named_empty?
-        puts "You must specify a formula. Search for available formulae with `brew available'."
+        puts "You must specify a formula. Search for available formulae with `brew search'."
         exit 0
       end
 

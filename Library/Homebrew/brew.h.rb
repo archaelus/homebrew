@@ -244,11 +244,16 @@ class Cleaner
     # you can read all of this stuff online nowadays, save the space
     # info pages are pants, everyone agrees apart from Richard Stallman
     # feel free to ask for build options though! http://bit.ly/Homebrew
-    (f.prefix+'share'+'doc').rmtree rescue nil
-    (f.prefix+'share'+'info').rmtree rescue nil
-    (f.prefix+'doc').rmtree rescue nil
-    (f.prefix+'docs').rmtree rescue nil
-    (f.prefix+'info').rmtree rescue nil
+    [(f.prefix+'share'+'doc'),
+     (f.prefix+'share'+'info'),
+     (f.prefix+'doc'),
+     (f.prefix+'docs'),
+     (f.prefix+'info')
+    ].each {|dir|
+      unless f.doc.to_s.start_with? dir.to_s
+        dir.rmtree rescue nil
+      end
+    }
   end
 
 private

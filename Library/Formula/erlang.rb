@@ -28,7 +28,9 @@ class Erlang <Formula
                           "--enable-dynamic-ssl-lib",
                           "--enable-smp-support",
                           "--enable-hipe"]
-    config_flags << "--enable-darwin-64bit --enable-m64-build" if hw_model == :core2 and os_version == :snow_leopard
+    if ARGV.include? '--64bit'
+      config_flags << "--enable-darwin-64bit" << "--enable-m64-build"
+    end
     system "./configure", *config_flags
     system "make"
     system "make install"

@@ -8,4 +8,5 @@
 /etc
 /var
 !/Library/
-!/bin/brew
+!/Xbin/brew
+*~

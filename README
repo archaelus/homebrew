@@ -188,7 +188,7 @@ effort from yourself.
 Uninstallation
 ==============
     cd `brew --prefix`
-    rm -rf Cellar Library
+    rm -rf Cellar Library .git
     rm bin/brew .gitignore README
 
 

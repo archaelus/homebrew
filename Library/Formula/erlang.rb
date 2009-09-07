@@ -12,7 +12,13 @@ class Erlang <Formula
   @homepage='http://www.erlang.org'
   @url='http://erlang.org/download/snapshots/otp_src_R13B02.tar.gz'
   @md5='203c71edf5383fec3a64a5b9af7670c0'
-    
+
+  def skip_clean? path
+    ["*/bin/*",
+     "*.o",
+     "*.so"].any? { |pat| path.fnmatch? pat }
+  end
+  
   def options
     [
       ['--64bit', "Build a 64bit version of Erlang."],

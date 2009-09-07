@@ -91,7 +91,7 @@ Commands:
   home formula ...
   available [formula or regex]
   info [formula] [--github]
-  make url
+  gen url
   prune
 
 To visit the Homebrew homepage type:

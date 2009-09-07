@@ -136,6 +136,10 @@ module HomebrewEnvExtension
     remove_from_cflags '-w'
   end
 
+  def force32bit
+    remove_from_cflags '-m64'
+  end
+
 private
   def append key, value
     ref=self[key]

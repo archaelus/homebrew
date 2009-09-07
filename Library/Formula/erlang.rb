@@ -16,6 +16,7 @@ class Erlang <Formula
   def options
     [
       ['--64bit', "Build a 64bit version of Erlang."],
+      ['--32bit', "Force a 64bit version of Erlang."],
     ]
   end
   
@@ -31,6 +32,9 @@ class Erlang <Formula
     if ARGV.include? '--64bit'
       config_flags << "--enable-darwin-64bit" << "--enable-m64-build"
     end
+
+    ENV.force32bit if ARGV.include? '--32bit'
+
     system "./configure", *config_flags
     system "make"
     system "make install"

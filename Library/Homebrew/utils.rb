@@ -64,11 +64,15 @@ end
 # Kernel.system but with exceptions
 def safe_system cmd, *args
   puts "#{cmd} #{args*' '}" if ARGV.verbose?
-
-  execd=Kernel.system cmd, *args
-  # somehow Ruby doesn't handle the CTRL-C from another process -- WTF!?
+  exec_success=Kernel.system cmd, *args
+  # some tools, eg. tar seem to confuse ruby and it doesn't propogate the
+  # CTRL-C interrupt to us too, so execution continues, but the exit code os
+  # still 2 so we raise our own interrupt
   raise Interrupt, cmd if $?.termsig == 2
-  raise ExecutionError.new(cmd, args) unless execd and $? == 0
+  unless exec_success and $?.success?
+    puts "Exit code: #{$?}"
+    raise ExecutionError.new(cmd, args)
+  end 
 end
 
 def curl url, *args
@@ -79,4 +83,40 @@ def puts_columns items, cols = 4
   items = items.join("\n") if items.is_a?(Array)
   width=`stty size`.chomp.split(" ").last
   IO.popen("pr -#{cols} -t", "w"){|io| io.write(items) }
+end
+
+def exec_editor *args
+  editor=ENV['EDITOR']
+  if editor.nil?
+    if system "which -s mate" and $?.success?
+      editor='mate'
+    else
+      editor='vim'
+    end
+  end
+  # we split the editor because especially on mac "mate -w" is common
+  # but we still want to use the comma-delimited version of exec because then
+  # we don't have to escape args, and escaping 100% is tricky
+  exec *(editor.split+args)
+end
+
+# provide an absolute path to a command or this function will search the PATH
+def arch_for_command cmd
+    archs = []
+    cmd = `which #{cmd}` if not Pathname.new(cmd).absolute?
+
+    IO.popen("file #{cmd}").readlines.each do |line|
+      case line
+      when /Mach-O executable ppc/
+        archs << :ppc7400
+      when /Mach-O 64-bit executable ppc64/
+        archs << :ppc64
+      when /Mach-O executable i386/
+        archs << :i386
+      when /Mach-O 64-bit executable x86_64/
+        archs << :x86_64
+      end
+    end
+
+    return archs
 end

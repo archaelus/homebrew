@@ -7,6 +7,7 @@ class Scala <Formula
   @md5='40a62c98d13689d83920f564a0532a8d'
 
   def install
-      system "cp -r . '#{prefix}'"
+    prefix.install Dir['*']
+    FileUtils.mv prefix+'man', share
   end
 end

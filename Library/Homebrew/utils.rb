@@ -69,7 +69,10 @@ def safe_system cmd, *args
   # CTRL-C interrupt to us too, so execution continues, but the exit code os
   # still 2 so we raise our own interrupt
   raise Interrupt, cmd if $?.termsig == 2
-  raise ExecutionError.new(cmd, args) unless exec_success and $?.success?
+  unless exec_success and $?.success?
+    puts "Exit code: #{$?}"
+    raise ExecutionError.new(cmd, args)
+  end 
 end
 
 def curl url, *args
@@ -91,5 +94,29 @@ def exec_editor *args
       editor='vim'
     end
   end
-  exec editor, *args
+  # we split the editor because especially on mac "mate -w" is common
+  # but we still want to use the comma-delimited version of exec because then
+  # we don't have to escape args, and escaping 100% is tricky
+  exec *(editor.split+args)
+end
+
+# provide an absolute path to a command or this function will search the PATH
+def arch_for_command cmd
+    archs = []
+    cmd = `which #{cmd}` if not Pathname.new(cmd).absolute?
+
+    IO.popen("file #{cmd}").readlines.each do |line|
+      case line
+      when /Mach-O executable ppc/
+        archs << :ppc7400
+      when /Mach-O 64-bit executable ppc64/
+        archs << :ppc64
+      when /Mach-O executable i386/
+        archs << :i386
+      when /Mach-O 64-bit executable x86_64/
+        archs << :x86_64
+      end
+    end
+
+    return archs
 end

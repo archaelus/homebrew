@@ -6,7 +6,7 @@ class Gnupg <Formula
   @sha1='826f4bef1effce61c3799c8f7d3cc8313b340b55'
 
   def install
-    system "./configure", "--prefix=#{prefix}", "--disable-debug", "--disable-dependency-tracking"
+    system "./configure", "--prefix=#{prefix}", "--disable-debug", "--disable-dependency-tracking", "--disable-asm"
 
     system "make"
     system "make check"

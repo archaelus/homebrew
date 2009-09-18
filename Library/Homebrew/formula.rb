@@ -98,6 +98,7 @@ class Formula
     case url
       when %r[^svn://] then SubversionDownloadStrategy
       when %r[^git://] then GitDownloadStrategy
+      when %r[^/.*.git$] then LocalGitDownloadStrategy
       when %r[^http://(.+?\.)?googlecode\.com/svn] then SubversionDownloadStrategy
       when %r[^http://svn.apache.org/repos/] then SubversionDownloadStrategy
       else HttpDownloadStrategy

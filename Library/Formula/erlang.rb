@@ -2,20 +2,20 @@ require 'brewkit'
 
 class ErlangManuals <Formula
   @homepage='http://www.erlang.org'
-  @url='http://erlang.org/download/snapshots/otp_man_R13B02_2009-09-04_18.tar.gz'
+  @url='http://erlang.org/download/otp_man_R13B02.tar.gz'
   @md5='853d01156d49f16b30ead8e0145f45ca'
 end
 
 class ErlangHtmlDocs <Formula
   @homepage='http://www.erlang.org'
-  @url='http://erlang.org/download/otp_doc_html_R13B01.tar.gz'
+  @url='http://erlang.org/download/otp_doc_html_R13B02.tar.gz'
   @md5='42cb55bbfa5dc071fd56034615072f7a'
 end
 
 class Erlang <Formula
   @homepage='http://www.erlang.org'
   @url='http://erlang.org/download/otp_src_R13B02.tar.gz'
-  @md5='80048e589272db810f5d536f47050ab8'
+  @md5='d70bfba6935e52a7759168a35fbcabe7'
 
   def deps
     LibraryDep.new 'icu4c'

@@ -6,7 +6,7 @@ Mac.
 
 Here's why you may prefer Homebrew to the alternatives:
 
-1.  Zeroconf installation  
+1.  Zero configuration installation  
     Copy the contents of this directory to /usr/local. Homebrew is now ready
     for use.
 
@@ -118,8 +118,8 @@ Max Howell -- <http://twitter.com/mxcl>
 
 Installation
 ============
-Homebrew is zeroconf, but almost everything it installs is built from source;
-so you need Xcode:
+Homebrew requires no setup, but almost everything it installs is built from
+source; so you need Xcode:
 
 <http://developer.apple.com/technology/xcode.html>
 
@@ -139,8 +139,8 @@ If this leaves you shaking your head because you are installing Homebrew
 .pkg installer][pkg]. Note these are somewhat new and are not stamped 
 "definitely works" yet.
 
-[sh]: http://demaree.me/x/7
-[pkg]: http://gist.github.com/179275
+[sh]: http://gist.github.com/179275
+[pkg]: http://demaree.me/x/7
 
 Homebrew is self-contained so once you've put it somewhere, it's ready to go.
 Copy this directory anywhere you like. But we recommend installing to
@@ -204,7 +204,12 @@ Uninstallation
     rm -rf Cellar
     brew prune
     rm -rf Library .git
-    rm bin/brew .gitignore README
+    rm bin/brew .gitignore README.md
+
+It is worth noting that if you installed somewhere like /usr/local then these
+uninstallation steps will leave that directory exactly like it was before
+Homebrew was installed. Unless you manually added new stuff there, in which
+case those things will still be there too.
 
 
 Sample Usage

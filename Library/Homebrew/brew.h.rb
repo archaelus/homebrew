@@ -36,17 +36,15 @@ def make url
             require 'brewkit'
 
             class #{Formula.class_s $1} <Formula
-              @url='#{url}'
-              @homepage=''
-              @md5=''
+              url '#{url}'
+              homepage ''
+              md5 ''
 
-  cmake       def deps
-  cmake         BinaryDep.new 'cmake'
-  cmake       end
-  cmake
+  cmake       depends_on 'cmake'
+
               def install
   autotools     system "./configure", "--prefix=\#{prefix}", "--disable-debug", "--disable-dependency-tracking"
-  cmake         system "cmake . \#{cmake_std_parameters}"
+  cmake         system "cmake . \#{std_cmake_parameters}"
                 system "make install"
               end
             end
@@ -95,7 +93,7 @@ def info name
   require 'formula'
 
   user=''
-  user=`git config --global github.user`.chomp if system "which git > /dev/null"
+  user=`git config --global github.user`.chomp if system "/usr/bin/which -s git"
   user='mxcl' if user.empty?
   # FIXME it would be nice if we didn't assume the default branch is master
   history="http://github.com/#{user}/homebrew/commits/master/Library/Formula/#{Formula.path(name).basename}"
@@ -139,8 +137,32 @@ end
 
 def clean f
   Cleaner.new f
-  # remove empty directories TODO Rubyize!
-  `perl -MFile::Find -e"finddepth(sub{rmdir},'#{f.prefix}')"`
+ 
+  # Hunt for empty folders and nuke them unless they are
+  # protected by f.skip_clean?
+  # We want post-order traversal, so put the dirs in a stack
+  # and then pop them off later.
+  paths = []
+  f.prefix.find do |path|
+    paths << path if path.directory?
+  end
+
+  until paths.empty? do
+    d = paths.pop
+    if d.children.empty? and not f.skip_clean? d
+      puts "rmdir: #{d} (empty)" if ARGV.verbose?
+      d.rmdir
+    end
+  end
+end
+
+
+def expand_deps ff
+  deps = []
+  ff.deps.collect do |f|
+    deps += expand_deps(Formula.factory(f))
+  end
+  deps << ff
 end
 
 
@@ -204,6 +226,84 @@ def diy
     "--prefix=#{prefix}"
   end
 end
+
+
+def fix_PATH
+  bad_paths  = `/usr/bin/which -a port`.split
+  bad_paths += `/usr/bin/which -a fink`.split
+
+  # don't remove standard paths!
+  bad_paths.delete_if do |pn|
+    %w[/usr/bin /bin /usr/sbin /sbin /usr/local/bin /usr/X11/bin].include? pn or pn.empty?
+  end
+  bad_paths += %w[/opt/local/bin /opt/local/sbin /sw/bin /sw/sbin]
+
+  paths = ENV['PATH'].split(':').reject do |p|
+    p.squeeze! '/'
+    bad_paths.find { |pn| p =~ /^#{pn}/ } and true
+  end
+  ENV['PATH'] = paths*':'
+end
+
+
+########################################################## class PrettyListing
+class PrettyListing
+  def initialize path
+    Pathname.new(path).children.sort{ |a,b| a.to_s.downcase <=> b.to_s.downcase }.each do |pn|
+      case pn.basename.to_s
+      when 'bin', 'sbin'
+        pn.find { |pnn| puts pnn unless pnn.directory? }
+      when 'lib'
+        print_dir pn do |pnn|
+          # dylibs have multiple symlinks and we don't care about them
+          (pnn.extname == '.dylib' or pnn.extname == '.pc') and not pnn.symlink?
+        end
+      else
+        print_dir pn
+      end
+    end
+  end
+
+private
+  def print_dir root
+    return unless root.directory?
+
+    dirs = []
+    remaining_root_files = []
+    other = ''
+
+    root.children.sort.each do |pn|
+      if pn.directory?
+        dirs << pn
+      elsif block_given? and yield pn
+        puts pn
+        other = 'other '
+      else
+        remaining_root_files << pn 
+      end
+    end
+
+    dirs.each do |d|
+      files = []
+      d.find { |pn| files << pn unless pn.directory? }
+      print_remaining_files files, d
+    end
+
+    print_remaining_files remaining_root_files, root, other
+  end
+
+  def print_remaining_files files, root, other = ''
+    case files.length
+    when 0
+      # noop
+    when 1
+      puts *files
+    else
+      puts "#{root} (#{files.length} #{other}files)"
+    end
+  end
+end
+
 
 ################################################################ class Cleaner
 class Cleaner

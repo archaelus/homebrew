@@ -5,11 +5,9 @@ class Python <Formula
   @homepage='http://www.python.org/'
   @md5='245db9f1e0f09ab7e0faaa0cf7301011'
 
-  def deps
-    # You can build Python without readline, but you really don't want to.
-    LibraryDep.new 'readline'
-  end
-  
+  # You can build Python without readline, but you really don't want to.
+  depends_on 'readline' => :recommended
+
   def skip_clean? path
     path == bin+'python' or path == bin+'python2.6' or # if you strip these, it can't load modules
     path == lib+'python2.6' # save a lot of time

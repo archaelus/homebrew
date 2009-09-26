@@ -12,14 +12,10 @@ class Glib <Formula
   @md5='4c178b91d82ef80a2da3c26b772569c0'
   @homepage='http://www.gtk.org'
 
-  def deps
-    BinaryDep.new 'pkg-config'
-    LibraryDep.new 'gettext'
-  end
+  depends_on 'pkg-config'
+  depends_on 'gettext'
 
   def install
-    ENV.gnu_gettext
-
     # Snow Leopard libiconv doesn't have a 64bit version of the libiconv_open
     # function, which breaks things for us, so we build our own
     # http://www.mail-archive.com/gtk-list@gnome.org/msg28747.html
@@ -47,7 +43,18 @@ class Glib <Formula
                           "--with-libiconv=gnu"
     system "make"
     system "make install"
-    
+
+    # this sucks, basically gettext is Keg only to prevent conflicts with
+    # the wider system, but pkg-config or glib is not smart enough to
+    # have determined that libintl.dylib isn't in the DYLIB_PATH so we have
+    # to add it manually, we might have to do this a lot, so clearly we need
+    # to make it automatic or solve the BSD/GNU gettext conflict in another
+    # way
+    gettext = Formula.factory 'gettext'
+    inreplace lib+'pkgconfig'+'glib-2.0.pc',
+              'Libs: -L${libdir} -lglib-2.0 -lintl',
+              "Libs: -L${libdir} -lglib-2.0 -L#{gettext.lib} -lintl"
+
     (prefix+'share'+'gtk-doc').rmtree
   end
 end

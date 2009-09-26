@@ -11,19 +11,37 @@ def text_for_keg_only_formula f
 #{f.name} is keg-only. This means it is not symlinked into Homebrew's
 prefix. The formula provides the following rationale:
 
-#{f.keg_only?}
+#{f.keg_only?.chomp}
 
 Generally there are no consequences of this for you, however if you build your
 own software and it requires this formula, you may want to run this command to
 link it into the Homebrew prefix:
 
      brew link #{f.name}
-  EOS
+EOS
 end
 
-def install f  
-  build_time = nil
 
+def ENV_append key, value, separator = ' '
+  if ENV[key] and not ENV[key].empty?
+    ENV[key] += separator+value
+  else
+    ENV[key] = value
+  end
+end
+
+
+def install f
+  f.deps.each do |dep|
+    dep = Formula.factory dep
+    if dep.keg_only?
+      ENV_append 'LDFLAGS', "-L#{dep.lib}"
+      ENV_append 'CPPFLAGS', "-I#{dep.include}"
+      ENV_append 'PATH', "#{dep.bin}", ':'
+    end
+  end
+
+  build_time = nil
   begin
     f.brew do
       if ARGV.flag? '--interactive'

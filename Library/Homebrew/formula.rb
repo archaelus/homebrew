@@ -30,8 +30,11 @@ class BuildError <ExecutionError
 end
 class FormulaUnavailableError <RuntimeError
   def initialize name
+    @name = name
     super "No available formula for #{name}"
   end
+  
+  attr_reader :name
 end
 
 
@@ -39,9 +42,9 @@ end
 class Formula
   # Homebrew determines the name
   def initialize name='__UNKNOWN__'
-    @url=self.class.url unless @url
+    set_instance_variable 'url'
+    set_instance_variable 'head'
 
-    @head=self.class.head unless @head
     if @head and (not @url or ARGV.flag? '--HEAD')
       @url=@head
       @version='HEAD'
@@ -50,15 +53,16 @@ class Formula
     raise if @url.nil?
     @name=name
     validate_variable :name
-    @version=self.class.version unless @version
-    @version=Pathname.new(@url).version unless @version
+
+    set_instance_variable 'version'
+    @version ||= Pathname.new(@url).version
     validate_variable :version if @version
-    @homepage=self.class.homepage unless @homepage
+    
+    set_instance_variable 'homepage'
+#    raise if @homepage.nil? # not a good idea while we have eg GitManpages!
+
     CHECKSUM_TYPES.each do |type|
-      if !instance_variable_defined?("@#{type}")
-        class_value = self.class.send(type)
-        instance_variable_set("@#{type}", class_value) if class_value
-      end
+      set_instance_variable type
     end
   end
 
@@ -117,8 +121,6 @@ class Formula
   # The final option is to return DATA, then put a diff after __END__. You
   # can still return a Hash with DATA as the value for a patch level key.
   def patches; end
-  # reimplement and specify dependencies
-  def deps; end
   # sometimes the clean process breaks things, return true to skip anything
   def skip_clean? path; false end
   # rarely, you don't want your library symlinked into the main prefix
@@ -129,7 +131,7 @@ class Formula
   def brew
     validate_variable :name
     validate_variable :version
-    
+
     stage do
       begin
         patch
@@ -165,6 +167,7 @@ class Formula
   end
 
   def self.factory name
+    return name if name.kind_of? Formula
     path = Pathname.new(name)
     if path.absolute?
       require name
@@ -172,13 +175,27 @@ class Formula
     else
       require self.path(name)
     end
-    return eval(self.class_s(name)).new(name)
+    begin
+      klass_name =self.class_s(name)
+      klass = eval(klass_name)
+    rescue NameError
+      # TODO really this text should be encoded into the exception
+      # and only shown if the UI deems it correct to show it
+      onoe "class \"#{klass_name}\" expected but not found in #{name}.rb"
+      puts "Double-check the name of the class in that formula."
+      raise LoadError
+    end
+    return klass.new(name)
   rescue LoadError
     raise FormulaUnavailableError.new(name)
   end
 
   def self.path name
     HOMEBREW_PREFIX+'Library'+'Formula'+"#{name.downcase}.rb"
+  end
+
+  def deps
+    self.class.deps or []
   end
 
 protected
@@ -214,7 +231,7 @@ private
     # I used /tmp rather than mktemp -td because that generates a directory
     # name with exotic characters like + in it, and these break badly written
     # scripts that don't escape strings before trying to regexp them :(
-    tmp=Pathname.new `mktemp -d /tmp/homebrew-#{name}-#{version}-XXXX`.strip
+    tmp=Pathname.new `/usr/bin/mktemp -d /tmp/homebrew-#{name}-#{version}-XXXX`.strip
     raise "Couldn't create build sandbox" if not tmp.directory? or $? != 0
     begin
       wd=Dir.pwd
@@ -308,12 +325,12 @@ private
 
     patch_list.each do |p|
       case p[:compression]
-        when :gzip  then safe_system "gunzip",  p[:filename]+'.gz'
-        when :bzip2 then safe_system "bunzip2", p[:filename]+'.bz2'
+        when :gzip  then safe_system "/usr/bin/gunzip",  p[:filename]+'.gz'
+        when :bzip2 then safe_system "/usr/bin/bunzip2", p[:filename]+'.bz2'
       end
       # -f means it doesn't prompt the user if there are errors, if just
       # exits with non-zero status
-      safe_system 'patch', '-f', *(p[:args])
+      safe_system '/usr/bin/patch', '-f', *(p[:args])
     end
   end
 
@@ -321,15 +338,53 @@ private
     v=eval "@#{name}"
     raise "Invalid @#{name}" if v.to_s.empty? or v =~ /\s/
   end
+  
+  def set_instance_variable(type)
+    if !instance_variable_defined?("@#{type}")
+      class_value = self.class.send(type)
+      instance_variable_set("@#{type}", class_value) if class_value
+    end
+  end
 
   def method_added method
     raise 'You cannot override Formula.brew' if method == 'brew'
   end
 
   class <<self
-    attr_reader :url, :version, :homepage, :head
-    attr_reader *CHECKSUM_TYPES
-  end
+    def self.attr_rw(*attrs)
+      attrs.each do |attr|
+        class_eval %Q{
+          def #{attr}(val=nil)
+            val.nil? ? @#{attr} : @#{attr} = val
+          end
+        }
+      end
+    end
+    
+    attr_rw :url, :version, :homepage, :head, :deps, *CHECKSUM_TYPES
+    
+    def depends_on name, *args
+      @deps ||= []
+
+      case name
+      when String
+        # noop
+      when Hash
+        name = name.keys.first # indeed, we only support one mapping
+      when Symbol
+        name = name.to_s
+      when Formula
+        @deps << name
+        return # we trust formula dev to not dupe their own instantiations
+      else
+        raise "Unsupported type #{name.class}"
+      end
+
+      # we get duplicates because every new fork of this process repeats this
+      # step for some reason I am not sure about
+      @deps << name unless @deps.include? name
+    end
+  end  
 end
 
 # see ack.rb for an example usage

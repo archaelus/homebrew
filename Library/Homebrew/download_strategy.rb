@@ -49,13 +49,16 @@ class HttpDownloadStrategy <AbstractDownloadStrategy
     return @dl # thus performs checksum verification
   end
   def stage
-    case `file -b #{@dl}`
-      when /^Zip archive data/
-        safe_system 'unzip', '-qq', @dl
+    # magic numbers stolen from /usr/share/file/magic/
+    File.open(@dl) do |f|
+      # get the first four bytes
+      case f.read(4)
+      when /^PK\003\004/ # .zip archive
+        safe_system '/usr/bin/unzip', '-qq', @dl
         chdir
-      when /^(gzip|bzip2) compressed data/
-        # TODO do file -z now to see if it is in fact a tar
-        safe_system 'tar', 'xf', @dl
+      when /^\037\213/, /^BZh/ # gzip/bz2 compressed
+        # TODO check if it's really a tar archive
+        safe_system '/usr/bin/tar', 'xf', @dl
         chdir
       else
         # we are assuming it is not an archive, use original filename
@@ -64,6 +67,7 @@ class HttpDownloadStrategy <AbstractDownloadStrategy
         # HOWEVER if this breaks some expectation you had we *will* change the
         # behaviour, just open an issue at github
         FileUtils.mv @dl, File.basename(@url)
+      end
     end
   end
 private
@@ -94,7 +98,7 @@ class SubversionDownloadStrategy <AbstractDownloadStrategy
     ohai "Checking out #{@url}"
     @co=HOMEBREW_CACHE+@unique_token
     unless @co.exist?
-      safe_system 'svn', 'checkout', @url, @co
+      safe_system '/usr/bin/svn', 'checkout', @url, @co
     else
       # TODO svn up?
       puts "Repository already checked out"
@@ -102,7 +106,7 @@ class SubversionDownloadStrategy <AbstractDownloadStrategy
   end
   def stage
     # Force the export, since the target directory will already exist
-    safe_system 'svn', 'export', '--force', @co, Dir.pwd
+    safe_system '/usr/bin/svn', 'export', '--force', @co, Dir.pwd
   end
 end
 

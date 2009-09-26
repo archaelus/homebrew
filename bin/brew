@@ -11,16 +11,23 @@ if %w[/ /usr].include? HOMEBREW_PREFIX.to_s then abort <<-EOS
   #{HOMEBREW_WWW}
   EOS
 end
-if `sw_vers -productVersion` =~ /10\.(\d)\.(\d+)/ and $1.to_i < 5
-  onoe "Homebrew requires Leopard or higher"
-  abort "But thanks for your interest anyway!"
+
+# remove MacPorts and Fink from the PATH, this prevents issues like:
+# http://github.com/mxcl/homebrew/issues/#issue/13
+# http://github.com/mxcl/homebrew/issues/#issue/48
+fix_PATH
+
+if MACOS_VERSION < 10.5
+  onoe "Homebrew currently requires Leopard or higher"
+  abort "Sorry about that, but thanks for your interest anyway!"
 end
-if Hardware.cpu_type == :ppc or Hardware.cpu_type == :dunno
+case Hardware.cpu_type when :ppc, :dunno
   abort "Sorry, Homebrew does not support your computer's CPU architecture."
 end
-unless system "which -s gcc-4.2" and $?.success?
+unless system "/usr/bin/which -s gcc-4.2"
   abort "Sorry, Homebrew requires gcc 4.2, which is provided by Xcode 3.1"
 end
+
 
 begin
   case ARGV.shift
@@ -40,8 +47,10 @@ begin
       if ARGV.named_empty?
         ENV['CLICOLOR']=nil
         exec 'ls', *ARGV.options<<HOMEBREW_CELLAR
-      else
+      elsif ARGV.verbose? or not $stdout.tty?
         exec "find", *ARGV.kegs+%w[-not -type d -print]
+      else
+        ARGV.kegs.each { |keg| PrettyListing.new keg }
       end
 
     when 'search', '-S'
@@ -55,7 +64,7 @@ begin
         # please improve it! :)
         exec 'mate', *Dir["#{HOMEBREW_PREFIX}/Library/*"]<<
                           "#{HOMEBREW_PREFIX}/bin/brew"<<
-                          "#{HOMEBREW_PREFIX}/README*"
+                          "#{HOMEBREW_PREFIX}/README.md"
       else
         exec_editor *ARGV.formulae.collect {|f| f.path}
       end
@@ -72,28 +81,54 @@ begin
 
       if ARGV.verbose?
         ohai "Build Environment"
-        %w[CFLAGS LDFLAGS CPPFLAGS MAKEFLAGS CC CXX].each do |f|
+        %w[CFLAGS LDFLAGS CPPFLAGS MAKEFLAGS CC CXX MACOSX_DEPLOYMENT_TARGET].each do |f|
           puts "#{f}: #{ENV[f]}" unless ENV[f].to_s.empty?
         end
       end
-
-      unless system "which #{ENV['CC'] or 'cc'} &> /dev/null" and $?.success?
-        raise "We cannot find a c compiler, have you installed the latest Xcode?"
+      
+      if ARGV.interactive? and ARGV.formulae.length > 1
+        # the reason for this is interactive mode is a little tricky to do 
+        # with more than one formula, AND I can't think of a time where you'd
+        # want to do it anyway. If someone comes up with a legitimate use for
+        # this we will adapt the code. "But I might want it!" is not a
+        # legitimate use!
+        raise "Interactive mode can only be used with one formula argument"
       end
 
-      require 'beer_events'
-      
-      watch_out_for_spill do
-        ARGV.formulae.each do |f|
-          if f.installed? and not ARGV.force?
+      unless ARGV.force?
+        unless system "/usr/bin/which -s #{ENV.cc}"
+          raise "We cannot find a c compiler, have you installed the latest Xcode?"
+        end
+        formulae = ARGV.formulae.reject do |f|
+          if f.installed?
             message = "Formula already installed: #{f.prefix}"
-            if ARGV.formulae.count > 1
+            if ARGV.formulae.length > 1
               opoo message
             else
               puts message # if only one is being installed a warning looks severe
             end
-            next
+            true
           end
+        end
+        exit 0 if formulae.empty?
+      else
+        formulae = ARGV.formulae
+      end
+
+      unless ARGV.include? '--ignore-dependencies'
+        deps = []
+        formulae.each { |f| deps += expand_deps f }
+        formulae = deps.reject { |f| f.installed? }
+      end
+
+      require 'set'
+      done = Set.new
+
+      require 'beer_events'
+      watch_out_for_spill do
+        formulae.each do |f|
+          next if done.include? f.class
+          done << f.class
 
           # 1. formulae can modify ENV, so we must ensure that each
           #    installation has a pristine ENV when it starts, forking now is 
@@ -117,21 +152,19 @@ begin
       updater = RefreshBrew.new
       old_revision = updater.current_revision
       unless updater.update_from_masterbrew!
-        ohai "Already up-to-date."
+        puts "Already up-to-date."
       else
-        ohai "Updated Homebrew from #{old_revision} to #{updater.current_revision}."
+        puts "Updated Homebrew from #{old_revision} to #{updater.current_revision}."
         if updater.pending_formulae_changes?
-          ohai "The following formulae were updated: #{updater.updated_formulae.join(', ')}"
+          ohai "The following formulae were updated:"
+          puts_columns updater.updated_formulae
         else
-          ohai "No formulae were updated." unless updater.pending_formulae_changes?
+          puts "No formulae were updated." unless updater.pending_formulae_changes?
         end
       end
 
     when 'ln', 'link'
       ARGV.kegs.each {|keg| puts "#{keg.link} links created for #{keg}"}
-
-    when 'unlink'
-      ARGV.kegs.each {|keg| puts "#{keg.unlink} links removed for #{keg}"}
 
     when 'unlink'
       ARGV.kegs.each {|keg| puts "#{keg.unlink} links removed for #{keg}"}
@@ -172,15 +205,21 @@ begin
         ARGV.named.each {|name| info name}
       end
 
-    else
-      puts ARGV.usage
+  when 'log'
+    Dir.chdir HOMEBREW_PREFIX
+    exec "git", "log", ARGV.formulae.first.path, *ARGV.options
+
+  else
+    puts ARGV.usage
   end
 
 rescue UsageError
   onoe "Invalid usage"
   puts ARGV.usage
+  exit 1
 rescue SystemExit
   ohai "Kernel.exit" if ARGV.verbose?
+  exit 1
 rescue Interrupt => e
   # puts # seemingly a newline is typical
   # Above is now commented out because the system() call forks and then forks
@@ -203,4 +242,5 @@ rescue Exception => e
   puts "Mac OS X: "+`sw_vers -productVersion`
   ohai e.inspect
   puts e.backtrace
+  exit 1
 end

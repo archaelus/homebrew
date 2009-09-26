@@ -66,6 +66,9 @@ module HomebrewArgvExtension
   def quieter?
     flag? '--quieter'
   end
+  def interactive?
+    flag? '--interactive'
+  end
 
   def flag? flag
     options.each do |arg|
@@ -79,20 +82,25 @@ module HomebrewArgvExtension
   def usage
     <<-EOS
 Usage: brew command [formula] ...
-Usage: brew [--prefix] [--cache] [--version]
+Usage: brew [--prefix] [--cache] [--version|-v]
 Usage: brew [--verbose|-v]
 
 Commands:
-  install formula ... [--debug|-d] [--interactive|-i]
+  install formula ... [--debug|-d] [--interactive|-i] [--ignore-dependencies]
   remove formula ...
   search [regex]
-  list [formula] ...
+  list [-v] [formula] ...
   link formula ...
+  unlink formula ...
   home formula ...
   info [formula] [--github]
-  create URL
   prune
   update
+
+Commands useful when contributing:
+  log formula
+  create URL
+  edit [formula]
 
 To visit the Homebrew homepage type:
   brew home

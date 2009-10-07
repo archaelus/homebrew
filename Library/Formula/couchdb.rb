@@ -10,8 +10,11 @@ class Couchdb <Formula
   depends_on 'erlang'
 
   def install
-    system "./configure", "--prefix=#{prefix}"
+    system "./configure", "--prefix=#{prefix}", "--localstatedir=#{var}", "--sysconfdir=#{etc}"
     system "make"
     system "make install"
+
+    (var+'lib'+'couchdb').mkpath
+    (var+'log'+'couchdb').mkpath
   end
 end

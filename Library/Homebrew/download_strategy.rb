@@ -28,7 +28,7 @@ class AbstractDownloadStrategy
   end
 end
 
-class HttpDownloadStrategy <AbstractDownloadStrategy
+class CurlDownloadStrategy <AbstractDownloadStrategy
   def fetch
     ohai "Downloading #{@url}"
     if @unique_token
@@ -93,6 +93,15 @@ private
   end
 end
 
+class HttpDownloadStrategy <CurlDownloadStrategy
+  def initialize url, name, version
+    opoo "HttpDownloadStrategy is deprecated"
+    puts "Please use CurlDownloadStrategy in future"
+    puts "HttpDownloadStrategy will be removed in version 0.5"
+    super url, name, version
+  end
+end
+
 class SubversionDownloadStrategy <AbstractDownloadStrategy
   def fetch
     ohai "Checking out #{@url}"
@@ -126,6 +135,73 @@ class GitDownloadStrategy <AbstractDownloadStrategy
     Dir.chdir @clone do
       # http://stackoverflow.com/questions/160608/how-to-do-a-git-export-like-svn-export
       safe_system 'git', 'checkout-index', '-af', "--prefix=#{dst}/"
+    end
+  end
+end
+
+class CVSDownloadStrategy <AbstractDownloadStrategy
+  def fetch
+    ohai "Checking out #{@url}"
+    @co=HOMEBREW_CACHE+@unique_token
+
+    # URL of cvs cvs://:pserver:anoncvs@www.gccxml.org:/cvsroot/GCC_XML:gccxml
+    # will become:
+    # cvs -d :pserver:anoncvs@www.gccxml.org:/cvsroot/GCC_XML login
+    # cvs -d :pserver:anoncvs@www.gccxml.org:/cvsroot/GCC_XML co gccxml
+    mod, url = split_url(@url)
+
+    unless @co.exist?
+      Dir.chdir HOMEBREW_CACHE do
+        safe_system '/usr/bin/cvs', '-d', url, 'login'
+        safe_system '/usr/bin/cvs', '-d', url, 'checkout', '-d', @unique_token, mod
+      end
+    else
+      # TODO cvs up?
+      puts "Repository already checked out"
+    end
+  end
+
+  def stage
+    FileUtils.cp_r(Dir[HOMEBREW_CACHE+@unique_token+"*"], Dir.pwd)
+
+    require 'find'
+
+    Find.find(Dir.pwd) do |path|
+      if FileTest.directory?(path) && File.basename(path) == "CVS"
+        Find.prune
+        FileUtil.rm_r path, :force => true
+      end
+    end
+  end
+
+private
+  def split_url(in_url)
+    parts=in_url.sub(%r[^cvs://], '').split(/:/)
+    mod=parts.pop
+    url=parts.join(':')
+    [ mod, url ]
+  end
+end
+
+class MercurialDownloadStrategy <AbstractDownloadStrategy
+  def fetch
+    ohai "Cloning #{@url}"
+    @clone=HOMEBREW_CACHE+@unique_token
+
+    url=@url.sub(%r[^hg://], '')
+
+    unless @clone.exist?
+      safe_system 'hg', 'clone', url, @clone
+    else
+      # TODO hg pull?
+      puts "Repository already cloned"
+    end
+  end
+  def stage
+    dst=Dir.getwd
+    Dir.chdir @clone do
+      # http://stackoverflow.com/questions/160608/how-to-do-a-git-export-like-svn-export
+      safe_system 'hg', 'archive', '-y', '-t', 'files', dst
     end
   end
 end

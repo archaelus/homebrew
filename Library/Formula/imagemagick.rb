@@ -3,8 +3,8 @@ require 'brewkit'
 # some credit to http://github.com/maddox/magick-installer
 
 class Imagemagick <Formula
-  @url='ftp://ftp.imagemagick.org/pub/ImageMagick/ImageMagick-6.5.5-10.tar.bz2'
-  @md5='36bcef67cae5d5fce2899acb9200213a'
+  @url='http://image_magick.veidrodis.com/image_magick/ImageMagick-6.5.6-5.tar.gz'
+  @md5='668919a5a7912fb6778975bc55893004'
   @homepage='http://www.imagemagick.org'
 
   depends_on 'jpeg'
@@ -13,12 +13,14 @@ class Imagemagick <Formula
   depends_on 'little-cms' => :optional
   depends_on 'ghostscript' => :recommended
 
+  def skip_clean? path
+    path.extname == '.la'
+  end
+
   def install
     ENV.libpng
     ENV.deparallelize
-
-    # TODO eventually these will be external optional dependencies
-    # but for now I am lazy
+    ENV.O3 # takes forever otherwise
 
     # versioned stuff in main tree is pointless for us
     inreplace 'configure', '${PACKAGE_NAME}-${PACKAGE_VERSION}', '${PACKAGE_NAME}'
@@ -27,7 +29,6 @@ class Imagemagick <Formula
                           "--with-modules",
                           "--without-magick-plus-plus",
                           "--disable-dependency-tracking",
-                          "--disable-shared",
                           "--without-maximum-compile-warnings",
                           "--prefix=#{prefix}",
                           "--disable-osx-universal-binary",

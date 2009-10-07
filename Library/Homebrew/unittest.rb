@@ -18,6 +18,7 @@ require 'update'
 # these are defined in global.rb, but we don't want to break our actual
 # homebrew tree, and we do want to test everything :)
 HOMEBREW_PREFIX=Pathname.new '/private/tmp/testbrew/prefix'
+HOMEBREW_REPOSITORY=HOMEBREW_PREFIX
 HOMEBREW_CACHE=HOMEBREW_PREFIX.parent+"cache"
 HOMEBREW_CELLAR=HOMEBREW_PREFIX.parent+"cellar"
 HOMEBREW_USER_AGENT="Homebrew"
@@ -34,18 +35,21 @@ require 'ARGV+yeast' # needs to be after test/unit to avoid conflict with Option
 class MockFormula <Formula
   def initialize url
     @url=url
+    @homepage = 'http://example.com/'
     super 'test'
   end
 end
 
 class MostlyAbstractFormula <Formula
   @url=''
+  @homepage = 'http://example.com/'
 end
 
 class TestBall <Formula
   # name parameter required for some Formula::factory
   def initialize name=nil
     @url="file:///#{Pathname.new(ABS__FILE__).parent.realpath}/testball-0.1.tbz"
+    @homepage = 'http://example.com/'
     super "testball"
   end
   def install
@@ -59,6 +63,7 @@ class TestZip <Formula
     zip=HOMEBREW_CACHE.parent+'test-0.1.zip'
     Kernel.system '/usr/bin/zip', '-0', zip, ABS__FILE__
     @url="file://#{zip}"
+    @homepage = 'http://example.com/'
     super 'testzip'
   end
 end
@@ -80,8 +85,9 @@ class TestScriptFileFormula <ScriptFileFormula
   version "1"
   
   def initialize
-    super
     @name='test-script-formula'
+    @homepage = 'http://example.com/'
+    super
   end
 end
 
@@ -101,7 +107,7 @@ class RefreshBrewMock < RefreshBrew
   end
   
   def expectations_met?
-    @expect.keys == @called
+    @expect.keys.sort == @called.sort
   end
   
   def inspect
@@ -357,7 +363,18 @@ class BeerTasting <Test::Unit::TestCase
 
     path=HOMEBREW_PREFIX+'Library'+'Formula'+"#{FOOBAR}.rb"
     path.dirname.mkpath
-    `echo "require 'brewkit'; class #{classname} <Formula; @url=''; end" > #{path}`
+    File.open(path, 'w') do |f|
+      f << %{
+        require 'brewkit'
+        class #{classname} < Formula
+          @url=''
+          def initialize(*args)
+            @homepage = 'http://example.com/'
+            super
+          end
+        end
+      }
+    end
     
     assert_not_nil Formula.factory(FOOBAR)
   end
@@ -533,6 +550,7 @@ class BeerTasting <Test::Unit::TestCase
       assert_equal false, updater.update_from_masterbrew!
       assert updater.expectations_met?
       assert updater.updated_formulae.empty?
+      assert updater.added_formulae.empty?
     end
   end
   
@@ -546,6 +564,7 @@ class BeerTasting <Test::Unit::TestCase
       assert_equal true, updater.update_from_masterbrew!
       assert !updater.pending_formulae_changes?
       assert updater.updated_formulae.empty?
+      assert updater.added_formulae.empty?
     end
   end
   
@@ -558,7 +577,8 @@ class BeerTasting <Test::Unit::TestCase
       
       assert_equal true, updater.update_from_masterbrew!
       assert updater.pending_formulae_changes?
-      assert_equal %w{ antiword bash-completion xar yajl }, updater.updated_formulae
+      assert_equal %w{ xar yajl }, updater.updated_formulae
+      assert_equal %w{ antiword bash-completion ddrescue dict lua }, updater.added_formulae
     end
   end
   
@@ -568,6 +588,11 @@ class BeerTasting <Test::Unit::TestCase
       updater.in_prefix_expect('git log -l -1 --pretty=format:%H', 'the-revision-hash')
       assert_equal 'the-revision-hash', updater.current_revision
     end
+  end
+  
+  def test_angband_version_style
+    f = MockFormula.new 'http://rephial.org/downloads/3.0/angband-3.0.9b-src.tar.gz'
+    assert_equal '3.0.9b', f.version
   end
   
   private
@@ -587,6 +612,19 @@ class BeerTasting <Test::Unit::TestCase
       @fixture_data = YAML.load(DATA)
     end
     @fixture_data
+  end
+
+  def test_ENV_options
+    ENV.gcc_4_0_1
+    ENV.gcc_4_2
+    ENV.O3
+    ENV.minimal_optimization
+    ENV.no_optimization
+    ENV.libxml2
+    ENV.x11
+    ENV.enable_warnings
+    assert !ENV.cc.empty?
+    assert !ENV.cxx.empty?
   end
 end
 

@@ -4,16 +4,12 @@ class Omega <Formula
   @url='http://www.alcyone.com/binaries/omega/omega-0.80.2-src.tar.gz'
   @homepage='http://www.alcyone.com/max/projects/omega/'
   @md5='6d65ec9e0cc87ccf89ab491533ec4b77'
-  @version='0.80.2'
 
   def install
     # 'make install' is weird, so we do it ourselves
     
-    omega_libexec = libexec + "omega"
-    omega_libexec.mkpath
-
     # Set up our target folders
-    inreplace "defs.h", "#define OMEGALIB \"./omegalib/\"", "#define OMEGALIB \"#{omega_libexec}/\""
+    inreplace "defs.h", "#define OMEGALIB \"./omegalib/\"", "#define OMEGALIB \"#{libexec}/\""
 
     # Don't alias CC this way; also, don't need that ncurses include path
     inreplace "Makefile", "CC = gcc -I/usr/include/ncurses", ""
@@ -28,6 +24,6 @@ class Omega <Formula
     system "make"
 
     bin.install "omega"
-    omega_libexec.install Dir['omegalib/*']
+    libexec.install Dir['omegalib/*']
   end
 end

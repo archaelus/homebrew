@@ -10,10 +10,14 @@ class Sdl <Formula
   end
 
   def install
+    ENV.gcc_4_2
     system "./configure", "--prefix=#{prefix}", "--disable-debug",
                           "--disable-dependency-tracking",
                           "--disable-video-x11",
-                          "--disable-nasm" # seems essential to build on 10.6
+                          "--disable-nasm"
     system "make install"
+    
+    # Copy source files needed for Ojective-C support.
+    libexec.install Dir["src/main/macosx/*"]
   end
 end

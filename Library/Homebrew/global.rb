@@ -39,6 +39,10 @@ HOMEBREW_CELLAR = HOMEBREW_PREFIX+'Cellar'
 HOMEBREW_VERSION = 0.4
 HOMEBREW_WWW = 'http://bit.ly/Homebrew'
 
+# we use Library as we allow people to symlink their Homebrew into another
+# directory so they can hack in one place and use it in another
+HOMEBREW_REPOSITORY = (HOMEBREW_PREFIX+'Library').realpath.parent
+
 MACOS_FULL_VERSION = `/usr/bin/sw_vers -productVersion`.chomp
 MACOS_VERSION = /(10\.\d+)(\.\d+)?/.match(MACOS_FULL_VERSION).captures.first.to_f
 

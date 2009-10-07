@@ -142,7 +142,7 @@ class Pathname
     return $1 if $1
 
     # eg foobar-4.5.0-bin
-    /-((\d+\.)+\d+)-(bin|src)$/.match stem
+    /-((\d+\.)+\d+[abc]?)-(bin|src|sources)$/.match stem
     return $1 if $1
 
     # eg. otp_src_R13B (this is erlang's style)
@@ -152,6 +152,10 @@ class Pathname
     end
 
     nil
+  end
+
+  if '1.9' <= RUBY_VERSION
+    alias_method :to_str, :to_s
   end
 end
 

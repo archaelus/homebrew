@@ -8,6 +8,8 @@ class ObjectiveCaml <Formula
   def install
     system "./configure --prefix #{prefix}"
     system "make world"
+    # 'world' can be built in parallel, but the other targets have problems
+    ENV.deparallelize
     system "make opt"
     system "make opt.opt"
     system "make install"

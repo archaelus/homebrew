@@ -21,24 +21,23 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-def make url
+FORMULA_META_FILES = %w[README ChangeLog COPYING LICENSE COPYRIGHT AUTHORS]
+
+def __make url, name
   require 'formula'
 
-  path=Pathname.new url
-
-  /(.*?)[-_.]?#{path.version}/.match path.basename
-  raise "Couldn't parse name from #{url}" if $1.nil? or $1.empty?
-
-  path=Formula.path $1
+  path = Formula.path name
   raise "#{path} already exists" if path.exist?
+
+  homepage = `osascript -e 'tell application "Safari" to if running then get URL of document of first window'`.chomp
 
   template=<<-EOS
             require 'brewkit'
 
-            class #{Formula.class_s $1} <Formula
+            class #{Formula.class_s name} <Formula
               url '#{url}'
-              homepage ''
               md5 ''
+              homepage '#{homepage}'
 
   cmake       depends_on 'cmake'
 
@@ -86,6 +85,38 @@ def make url
   f.close
 
   return path
+end
+
+def make url
+  path = Pathname.new url
+
+  /(.*?)[-_.]?#{path.version}/.match path.basename
+
+  unless $1.to_s.empty?
+    name = $1
+  else
+    print "Formula name [#{path.stem}]: "
+    gots = $stdin.gets.chomp
+    if gots.empty?
+      name = path.stem
+    else
+      name = gots
+    end
+  end
+
+  case name
+  when /libxml/, /libxlst/, /freetype/, /libpng/
+    raise <<-EOS
+#{name} is blacklisted for creation
+Apple distributes this library with OS X, you can find it in /usr/X11/lib.
+However not all build scripts look here, so you may need to call ENV.x11 or
+ENV.libxml2 in your formula's install function.
+    EOS
+  when 'mercurial'
+    raise "Mercurial is blacklisted for creation because it is provided by easy_install"
+  end
+
+  __make url, name
 end
 
 
@@ -228,21 +259,46 @@ def diy
 end
 
 
-def fix_PATH
-  bad_paths  = `/usr/bin/which -a port`.split
-  bad_paths += `/usr/bin/which -a fink`.split
-
-  # don't remove standard paths!
-  bad_paths.delete_if do |pn|
-    %w[/usr/bin /bin /usr/sbin /sbin /usr/local/bin /usr/X11/bin].include? pn or pn.empty?
+def warn_about_macports_or_fink
+  # See these issues for some history:
+  # http://github.com/mxcl/homebrew/issues/#issue/13
+  # http://github.com/mxcl/homebrew/issues/#issue/41
+  # http://github.com/mxcl/homebrew/issues/#issue/48
+  
+  %w[port fink].each do |ponk|
+    path = `/usr/bin/which -s #{ponk}`
+    unless path.empty?
+      opoo "It appears you have Macports or Fink in your PATH"
+      puts "If formula fail to build try renaming or uninstalling these tools."
+    end
   end
-  bad_paths += %w[/opt/local/bin /opt/local/sbin /sw/bin /sw/sbin]
-
-  paths = ENV['PATH'].split(':').reject do |p|
-    p.squeeze! '/'
-    bad_paths.find { |pn| p =~ /^#{pn}/ } and true
+  
+  # we do the above check because macports can be relocated and fink may be
+  # able to be relocated in the future. This following check is because if
+  # fink and macports are not in the PATH but are still installed it can
+  # *still* break the build -- because some build scripts hardcode these paths:
+  %w[/sw/bin/fink /opt/local/bin/port].each do |ponk|
+    if File.exist? ponk
+      opoo "It appears you have MacPorts or Fink installed"
+      puts "If formula fail to build, consider renaming: %s" % Pathname.new(ponk).dirname.parent
+    end
   end
-  ENV['PATH'] = paths*':'
+  
+  # finally sometimes people make their MacPorts or Fink read-only so they
+  # can quickly test Homebrew out, but still in theory obey the README's 
+  # advise to rename the root directory. This doesn't work, many build scripts
+  # error out when they try to read from these now unreadable directories.
+  %w[/sw /opt/local].each do |path|
+    if File.exist? path and not File.readable? path
+      opoo "It appears you have MacPorts or Fink installed"
+      puts "This has been known to cause build fails and other more subtle problems."
+    end
+  end
+end
+
+
+def versions_of(keg_name)
+  `ls #{HOMEBREW_CELLAR}/#{keg_name}`.collect { |version| version.strip }.reverse
 end
 
 
@@ -259,15 +315,17 @@ class PrettyListing
           (pnn.extname == '.dylib' or pnn.extname == '.pc') and not pnn.symlink?
         end
       else
-        print_dir pn
+        if pn.directory?
+          print_dir pn
+        elsif not FORMULA_META_FILES.include? pn.basename.to_s
+          puts pn
+        end
       end
     end
   end
 
 private
   def print_dir root
-    return unless root.directory?
-
     dirs = []
     remaining_root_files = []
     other = ''
@@ -299,7 +357,7 @@ private
     when 1
       puts *files
     else
-      puts "#{root} (#{files.length} #{other}files)"
+      puts "#{root}/ (#{files.length} #{other}files)"
     end
   end
 end
@@ -345,7 +403,7 @@ private
 
   def clean_file path
     perms=0444
-    case `file -h #{path}`
+    case `file -h '#{path}'`
     when /Mach-O dynamically linked shared library/
       strip path, '-SxX'
     when /Mach-O [^ ]* ?executable/
@@ -366,7 +424,7 @@ private
       elsif path.extname == '.la' and not @f.skip_clean? path
         # *.la files are stupid
         path.unlink
-      else
+      elsif not path.symlink?
         clean_file path
       end
     end

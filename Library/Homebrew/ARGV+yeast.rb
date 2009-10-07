@@ -58,7 +58,7 @@ module HomebrewArgvExtension
     flag? '--force'
   end
   def verbose?
-    flag? '--verbose'
+    flag? '--verbose' or ENV['HOMEBREW_VERBOSE']
   end
   def debug?
     flag? '--debug' or ENV['HOMEBREW_DEBUG']
@@ -88,8 +88,8 @@ Usage: brew [--verbose|-v]
 Commands:
   install formula ... [--debug|-d] [--interactive|-i] [--ignore-dependencies]
   remove formula ...
-  search [regex]
-  list [-v] [formula] ...
+  search [/regex/] [substring]
+  list [--brewed] [--unbrewed] [formula] ...
   link formula ...
   unlink formula ...
   home formula ...

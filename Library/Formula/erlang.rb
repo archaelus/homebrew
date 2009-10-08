@@ -17,7 +17,15 @@ class Erlang <Formula
   homepage 'http://www.erlang.org'
 
   depends_on 'icu4c'
-  skip_clean 'lib'
+  
+  def skip_clean? path
+    ["*/bin/*",
+     "*/doc/*",
+     "*/lib/*",
+     "*/share/*",
+     "*.o",
+     "*.so"].any? { |pat| path.fnmatch? pat }
+  end
 
   def install
     ENV.deparallelize

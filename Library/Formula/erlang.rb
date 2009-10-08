@@ -51,6 +51,12 @@ class Erlang <Formula
     system "make install"
 
     ErlangManuals.new.brew { man.install Dir['man/*'] }
-    #ErlangHtmlDocs.new.brew { doc.install Dir['*'] }
+    if ARGV.include? '--with-html-docs'
+      ErlangHtmlDocs.new.brew {
+        doc.install Dir['doc/*']
+        doc.install Dir['erts-*/*']
+        doc.install Dir['lib/*']
+      }
+    end
   end
 end

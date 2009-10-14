@@ -1,9 +1,9 @@
 require 'brewkit'
 
 class Faac <Formula
-  url 'http://downloads.sourceforge.net/faac/faac-1.28.tar.gz'
-  homepage 'http://www.audiocoding.com'
-  md5 ''
+  url 'http://surfnet.dl.sourceforge.net/project/faac/faac-src/faac-1.28/faac-1.28.tar.gz'
+  md5 '80763728d392c7d789cde25614c878f6'
+  homepage 'http://www.audiocoding.com/faac.html'
 
   def install
     system "./configure", "--prefix=#{prefix}", "--disable-debug", "--disable-dependency-tracking"

@@ -184,6 +184,9 @@ module HomebrewEnvExtension
     append_to_cflags '-m64'
     ENV['LDFLAGS'] += '-arch x86_64'
   end
+  def with_frame_pointer
+    remove_from_cflags '-fomit-frame-pointer'
+  end
 
 private
   def append key, value

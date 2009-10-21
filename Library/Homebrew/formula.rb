@@ -21,6 +21,8 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+require 'download_strategy'
+
 class ExecutionError <RuntimeError
   def initialize cmd, args=[]
     super "Failure while executing: #{cmd} #{args*' '}"
@@ -44,6 +46,7 @@ class Formula
   def initialize name='__UNKNOWN__'
     set_instance_variable 'url'
     set_instance_variable 'head'
+    set_instance_variable 'specs'
 
     if @head and (not @url or ARGV.flag? '--HEAD')
       @url=@head
@@ -83,7 +86,7 @@ class Formula
     self.class.path name
   end
 
-  attr_reader :url, :version, :homepage, :name
+  attr_reader :url, :version, :homepage, :name, :specs
 
   def bin; prefix+'bin' end
   def sbin; prefix+'sbin' end
@@ -107,6 +110,7 @@ class Formula
     when %r[^cvs://] then CVSDownloadStrategy
     when %r[^hg://] then MercurialDownloadStrategy
     when %r[^svn://] then SubversionDownloadStrategy
+    when %r[^svn+http://] then SubversionDownloadStrategy
     when %r[^git://] then GitDownloadStrategy
     when %r[^http://(.+?\.)?googlecode\.com/svn] then SubversionDownloadStrategy
     when %r[^http://(.+?\.)?sourceforge\.net/svnroot/] then SubversionDownloadStrategy
@@ -179,7 +183,8 @@ class Formula
 
   def self.class_s name
     #remove invalid characters and camelcase
-    name.capitalize.gsub(/[-_\s]([a-zA-Z0-9])/) { $1.upcase }
+    name.capitalize.gsub(/[-_.\s]([a-zA-Z0-9])/) { $1.upcase } \
+                   .gsub('+', 'x')
   end
 
   def self.factory name
@@ -279,7 +284,7 @@ private
   end
 
   def stage
-    ds=download_strategy.new url, name, version
+    ds=download_strategy.new url, name, version, specs
     HOMEBREW_CACHE.mkpath
     dl=ds.fetch
     verify_download_integrity dl if dl.kind_of? Pathname
@@ -378,7 +383,14 @@ private
       end
     end
 
-    attr_rw :url, :version, :homepage, :head, :deps, *CHECKSUM_TYPES
+    attr_rw :url, :version, :homepage, :specs, :deps, *CHECKSUM_TYPES
+
+    def head val=nil, specs=nil
+      if specs
+        @specs = specs
+      end
+      val.nil? ? @head : @head = val
+    end
 
     def depends_on name, *args
       @deps ||= []

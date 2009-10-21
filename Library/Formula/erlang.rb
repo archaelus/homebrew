@@ -1,4 +1,4 @@
-require 'brewkit'
+require 'formula'
 
 class ErlangManuals <Formula
   url 'http://www.erlang.org/download/otp_doc_man_R13B02-1.tar.gz'
@@ -43,10 +43,7 @@ class Erlang <Formula
     end
 
     system "./configure", *config_flags
-
-    # until WX works on mac os x, skip building it to save time.
     system "touch lib/wx/SKIP"
-
     system "make"
     system "make install"
 

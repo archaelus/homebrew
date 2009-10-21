@@ -5,8 +5,10 @@
 
 ABS__FILE__=File.expand_path(__FILE__)
 
-$:.unshift File.dirname(ABS__FILE__)
-require 'pathname+yeast'
+$:.unshift File.dirname(ABS__FILE__)+'/..'
+require 'extend/pathname'
+require 'utils'
+require 'hardware'
 require 'formula'
 require 'download_strategy'
 require 'keg'
@@ -29,7 +31,8 @@ Dir.chdir HOMEBREW_PREFIX
 at_exit { HOMEBREW_PREFIX.parent.rmtree }
 
 require 'test/unit' # must be after at_exit
-require 'ARGV+yeast' # needs to be after test/unit to avoid conflict with OptionsParser
+require 'extend/ARGV' # needs to be after test/unit to avoid conflict with OptionsParser
+ARGV.extend(HomebrewArgvExtension)
 
 
 class MockFormula <Formula
@@ -365,7 +368,7 @@ class BeerTasting <Test::Unit::TestCase
     path.dirname.mkpath
     File.open(path, 'w') do |f|
       f << %{
-        require 'brewkit'
+        require 'formula'
         class #{classname} < Formula
           @url=''
           def initialize(*args)
@@ -590,6 +593,11 @@ class BeerTasting <Test::Unit::TestCase
     end
   end
   
+  def test_class_names
+    assert_equal 'ShellFm', Formula.class_s('shell.fm')
+    assert_equal 'Fooxx', Formula.class_s('foo++')
+  end
+      
   def test_angband_version_style
     f = MockFormula.new 'http://rephial.org/downloads/3.0/angband-3.0.9b-src.tar.gz'
     assert_equal '3.0.9b', f.version

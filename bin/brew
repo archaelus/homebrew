@@ -16,13 +16,31 @@ end
 
 $:.unshift homebrew_rubylib_path
 require 'global'
-require 'brew.h'
 
-if %w[/ /usr].include? HOMEBREW_PREFIX.to_s then abort <<-EOS
-  You have placed Homebrew at the prefix: #{HOMEBREW_PREFIX}
-  This is not currently supported. Voice your support for this feature at:
-  #{HOMEBREW_WWW}
-  EOS
+case ARGV.first
+when '--cache'
+  puts HOMEBREW_CACHE
+  exit 0
+when '-h', '--help', '--usage', '-?' 
+  puts ARGV.usage
+  exit 0
+when '--version'
+  puts HOMEBREW_VERSION
+  exit 0
+when '-v'
+  if ARGV.length > 1
+    puts "Homebrew #{HOMEBREW_VERSION}"
+    # continue in verbose mode
+    ARGV << ARGV.shift
+  else
+    puts HOMEBREW_VERSION
+    exit 0
+  end
+end
+
+case HOMEBREW_PREFIX.to_s when '/', '/usr'
+  # it may work, but I only see pain this route and don't want to support it
+  abort "Cowardly refusing to continue at this prefix: #{HOMEBREW_PREFIX}"
 end
 if MACOS_VERSION < 10.5
   abort "Homebrew requires Leopard or higher, but you could fork it and fix that..."
@@ -30,17 +48,13 @@ end
 case Hardware.cpu_type when :ppc, :dunno
   abort "Sorry, Homebrew does not support your computer's CPU architecture."
 end
-unless system "/usr/bin/which -s gcc-4.2"
-  abort "Sorry, Homebrew requires gcc 4.2, which is provided by Xcode 3.1 and later."
-end
-
 
 begin
+  require 'brew.h'
+
   case ARGV.shift
-    when '--prefix' then puts HOMEBREW_PREFIX
-    when '--cache' then puts HOMEBREW_CACHE
-    when '-h', '--help', '--usage', '-?' then puts ARGV.usage
-    when '-v', '--version' then puts HOMEBREW_VERSION
+  when '--prefix'
+    puts HOMEBREW_PREFIX
 
     when 'home', 'homepage'
       if ARGV.named_empty?
@@ -92,8 +106,6 @@ begin
       
       raise "Cannot write to #{HOMEBREW_PREFIX}" unless HOMEBREW_PREFIX.writable?
 
-      require 'brewkit'
-
       if ARGV.interactive? and ARGV.formulae.length > 1
         # the reason for this is interactive mode is a little tricky to do 
         # with more than one formula, AND I can't think of a time where you'd
@@ -103,19 +115,9 @@ begin
         raise "Interactive mode can only be used with one formula argument"
       end
 
-      if ARGV.verbose?
-        ohai "Build Environment"
-        %w[PATH CFLAGS LDFLAGS CPPFLAGS MAKEFLAGS CC CXX MACOSX_DEPLOYMENT_TARGET].each do |f|
-          puts "#{f}: #{ENV[f]}" unless ENV[f].to_s.empty?
-        end
-      end
-
       warn_about_macports_or_fink # keep warning before dependency resolution
 
       unless ARGV.force?
-        unless system "/usr/bin/which -s #{ENV.cc}"
-          raise "We cannot find a c compiler, have you installed the latest Xcode?"
-        end
         formulae = ARGV.formulae.reject do |f|
           if f.installed?
             message = "Formula already installed: #{f.prefix}"
@@ -212,7 +214,7 @@ begin
       if ARGV.include? '--macports'
         exec "open", "http://www.macports.org/ports.php?by=name&substr=#{ARGV.next}"
       else
-        exec_editor *ARGV.collect {|name| make name}
+        exec_editor *ARGV.named.collect {|name| make name}
       end
 
     when 'diy', 'configure'

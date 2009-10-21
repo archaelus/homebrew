@@ -1,4 +1,4 @@
-require 'brewkit'
+require 'formula'
 
 # some credit to http://github.com/maddox/magick-installer
 
@@ -11,6 +11,7 @@ class Imagemagick <Formula
   depends_on 'libwmf' => :optional
   depends_on 'libtiff' => :optional
   depends_on 'little-cms' => :optional
+  depends_on 'jasper' => :optional
   depends_on 'ghostscript' => :recommended
 
   def skip_clean? path

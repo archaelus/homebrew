@@ -22,8 +22,12 @@
 #  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 class AbstractDownloadStrategy
-  def initialize url, name, version
+  def initialize url, name, version, specs
     @url=url
+    case specs when Hash
+      @spec = specs.keys.first # only use first spec
+      @ref = specs.values.first
+    end
     @unique_token="#{name}-#{version}" unless name.to_s.empty? or name == '__UNKNOWN__'
   end
 end
@@ -94,11 +98,11 @@ private
 end
 
 class HttpDownloadStrategy <CurlDownloadStrategy
-  def initialize url, name, version
+  def initialize url, name, version, specs
     opoo "HttpDownloadStrategy is deprecated"
     puts "Please use CurlDownloadStrategy in future"
     puts "HttpDownloadStrategy will be removed in version 0.5"
-    super url, name, version
+    super url, name, version, specs
   end
 end
 
@@ -131,8 +135,17 @@ class GitDownloadStrategy <AbstractDownloadStrategy
     end
   end
   def stage
-    dst=Dir.getwd
+    dst = Dir.getwd
     Dir.chdir @clone do
+      if @spec and @ref
+        ohai "Checking out #{@spec} #{@ref}"
+        case @spec
+        when :branch
+          safe_system 'git', 'checkout', '-b', @ref, "origin/#{@ref}"
+        when :tag
+          safe_system 'git', 'checkout', @ref
+        end
+      end
       # http://stackoverflow.com/questions/160608/how-to-do-a-git-export-like-svn-export
       safe_system 'git', 'checkout-index', '-af', "--prefix=#{dst}/"
     end
@@ -200,7 +213,14 @@ class MercurialDownloadStrategy <AbstractDownloadStrategy
   def stage
     dst=Dir.getwd
     Dir.chdir @clone do
-      safe_system 'hg', 'archive', '-y', '-t', 'files', dst
+      if @spec and @ref
+        ohai "Checking out #{@spec} #{@ref}"
+        Dir.chdir @clone do
+          safe_system 'hg', 'archive', '-y', '-r', @ref, '-t', 'files', dst
+        end
+      else
+        safe_system 'hg', 'archive', '-y', '-t', 'files', dst
+      end
     end
   end
 end

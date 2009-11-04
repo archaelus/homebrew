@@ -96,7 +96,7 @@ def install f
   rescue Exception => e
     opoo "The cleaning step did not complete successfully"
     puts "Still, the installation was successful, so we will link it into your prefix"
-    ohai e, e.inspect if ARGV.debug?
+    ohai e, e.backtrace if ARGV.debug?
     show_summary_heading = true
   end
 
@@ -122,11 +122,11 @@ def install f
   else
     begin
       Keg.new(f.prefix).link
-    rescue Exception
+    rescue Exception => e
       onoe "The linking step did not complete successfully"
       puts "The package built, but is not symlinked into #{HOMEBREW_PREFIX}"
       puts "You can try again using `brew link #{f.name}'"
-      ohai e, e.inspect if ARGV.debug?
+      ohai e, e.backtrace if ARGV.debug?
       show_summary_heading = true
     end
   end
@@ -137,9 +137,16 @@ def install f
   puts
 
 rescue Exception => e
-  #TODO propogate exception back to brew script
-  onoe e
-  puts e.backtrace
+  if ENV['HOMEBREW_ERROR_PIPE']
+    pipe = IO.new(ENV['HOMEBREW_ERROR_PIPE'].to_i, 'w')
+    Marshal.dump(e, pipe)
+    pipe.close
+    exit! 1
+  else
+    onoe e
+    puts e.backtrace
+    exit! 2
+  end
 end
 
 

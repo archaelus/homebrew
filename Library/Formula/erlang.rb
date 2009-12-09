@@ -1,19 +1,19 @@
 require 'formula'
 
 class ErlangManuals <Formula
-  url 'http://www.erlang.org/download/otp_doc_man_R13B02-1.tar.gz'
-  md5 'b5f7b20faa049a8b6a753fc7a462d02d'
+  url 'http://www.erlang.org/download/otp_doc_man_R13B03.tar.gz'
+  md5 '1fe80b110061ef73614824fb06d4d6eb'
 end
 
 class ErlangHtmlDocs <Formula
-  url 'http://erlang.org/download/otp_doc_html_R13B02-1.tar.gz'
-  md5 'd48da533b49f7b32c94032f2a53c0073'
+  url 'http://erlang.org/download/otp_doc_html_R13B03.tar.gz'
+  md5 'ade1a4d5dcfe3732dc953f7cf9664b37'
 end
 
 class Erlang <Formula
-  url 'http://erlang.org/download/otp_src_R13B02-1.tar.gz'
-  md5 '2593b9312eb1b15bf23a968743138c52'
-  version 'R13B02-1'
+  url 'http://erlang.org/download/otp_src_R13B03.tar.gz'
+  md5 '411fcb29f0819973f71e28f6b56d9948'
+  version 'R13B03'
   homepage 'http://www.erlang.org'
 
   depends_on 'icu4c'
@@ -28,7 +28,7 @@ class Erlang <Formula
   end
 
   def patches
-    { :p1 => DATA,
+    { #:p1 => DATA,
       :p0 => ["patch-toolbar.erl",
               "patch-erts_emulator_Makefile.in",
               "patch-erts_emulator_hipe_hipe_amd64_asm.m4.diff",

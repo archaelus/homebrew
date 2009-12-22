@@ -162,6 +162,37 @@ class GitDownloadStrategy <AbstractDownloadStrategy
   end
 end
 
+class LocalGitDownloadStrategy <AbstractDownloadStrategy
+  def fetch
+    ohai "Cloning #{@url}"
+    @clone=HOMEBREW_CACHE+@unique_token
+    newurl = @url.sub(%r[^git://],'')
+    unless @clone.exist?
+      safe_system 'git', 'clone', newurl, @clone
+    else
+      # TODO git pull?
+      puts "Repository already cloned to #{@clone}"
+    end
+  end
+  def stage
+    dst = Dir.getwd
+    Dir.chdir @clone do
+      if @spec and @ref
+        ohai "Checking out #{@spec} #{@ref}"
+        case @spec
+        when :branch
+          nostdout { safe_system 'git', 'checkout', "origin/#{@ref}" }
+        when :tag
+          nostdout { safe_system 'git', 'checkout', @ref }
+        end
+      end
+      # http://stackoverflow.com/questions/160608/how-to-do-a-git-export-like-svn-export
+      safe_system 'git', 'checkout-index', '-af', "--prefix=#{dst}/"
+    end
+  end
+end
+
+
 class CVSDownloadStrategy <AbstractDownloadStrategy
   def fetch
     ohai "Checking out #{@url}"

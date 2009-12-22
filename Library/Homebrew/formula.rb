@@ -164,6 +164,7 @@ class Formula
     when %r[^hg://] then MercurialDownloadStrategy
     when %r[^svn://] then SubversionDownloadStrategy
     when %r[^svn+http://] then SubversionDownloadStrategy
+    when %r[^git:///] then LocalGitDownloadStrategy
     when %r[^git://] then GitDownloadStrategy
     when %r[^http://(.+?\.)?googlecode\.com/svn] then SubversionDownloadStrategy
     when %r[^http://(.+?\.)?sourceforge\.net/svnroot/] then SubversionDownloadStrategy

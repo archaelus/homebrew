@@ -161,8 +161,8 @@ begin
     when 'rm', 'uninstall', 'remove'
       ARGV.kegs.each do |keg|
         puts "Uninstalling #{keg}..."
-        keg.uninstall
         keg.unlink
+        keg.uninstall
       end
 
     when 'prune'
@@ -275,7 +275,7 @@ begin
       checked = {}
       to_check = [name]
 
-      while ! to_check.empty?
+      until to_check.empty?
         item = to_check.pop
         checked[item] = true
         
@@ -294,7 +294,7 @@ begin
       end
     end
 
-  when 'pull', 'push', 'checkout', 'branch'
+  when 'branch', 'checkout', 'pull', 'push', 'reset'
     onoe "Unknown command: #{arg} (did you mean 'git #{arg}'?)"
     
   else

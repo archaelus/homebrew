@@ -21,7 +21,7 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-FORMULA_META_FILES = %w[README ChangeLog COPYING LICENSE COPYRIGHT AUTHORS]
+FORMULA_META_FILES = %w[README README.md ChangeLog COPYING LICENSE COPYRIGHT AUTHORS]
 PLEASE_REPORT_BUG = "#{Tty.white}Please report this bug at #{Tty.em}http://github.com/mxcl/homebrew/issues#{Tty.reset}"
 
 def check_for_blacklisted_formula names
@@ -465,6 +465,12 @@ def gcc_build
   `/usr/bin/gcc-4.2 -v 2>&1` =~ /build (\d{4,})/
   if $1
     $1.to_i 
+  elsif system "/usr/bin/which gcc"
+    # Xcode 3.0 didn't come with gcc-4.2
+    # We can't change the above regex to use gcc because the version numbers
+    # are different and thus, not useful.
+    # FIXME I bet you 20 quid this causes a side effect — magic values tend to
+    401
   else
     nil
   end

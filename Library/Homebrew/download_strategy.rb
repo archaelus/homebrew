@@ -73,6 +73,8 @@ class CurlDownloadStrategy <AbstractDownloadStrategy
       # TODO check if it's really a tar archive
       safe_system '/usr/bin/tar', 'xf', @tarball_path
       chdir
+    when 'Rar!'
+      quiet_safe_system 'unrar', 'x', {:quiet_flag => '-inul'}, @tarball_path
     else
       # we are assuming it is not an archive, use original filename
       # this behaviour is due to ScriptFileFormula expectations
@@ -170,6 +172,13 @@ class GitDownloadStrategy <AbstractDownloadStrategy
       end
       # http://stackoverflow.com/questions/160608/how-to-do-a-git-export-like-svn-export
       safe_system 'git', 'checkout-index', '-a', '-f', "--prefix=#{dst}/"
+      # check for submodules
+      if File.exist?('.gitmodules')
+        safe_system 'git', 'submodule', 'init'
+        safe_system 'git', 'submodule', 'update'
+        sub_cmd = "git checkout-index -a -f --prefix=#{dst}/$path/"
+        safe_system 'git', 'submodule', '--quiet', 'foreach', '--recursive', sub_cmd
+      end
     end
   end
 end
@@ -285,5 +294,21 @@ class BazaarDownloadStrategy <AbstractDownloadStrategy
         safe_system 'bzr', 'export', dst
       end
     end
+  end
+end
+
+def detect_download_strategy url
+  case url
+  when %r[^cvs://] then CVSDownloadStrategy
+  when %r[^hg://] then MercurialDownloadStrategy
+  when %r[^svn://] then SubversionDownloadStrategy
+  when %r[^svn+http://] then SubversionDownloadStrategy
+  when %r[^git://] then GitDownloadStrategy
+  when %r[^bzr://] then BazaarDownloadStrategy
+  when %r[^https?://(.+?\.)?googlecode\.com/hg] then MercurialDownloadStrategy
+  when %r[^https?://(.+?\.)?googlecode\.com/svn] then SubversionDownloadStrategy
+  when %r[^https?://(.+?\.)?sourceforge\.net/svnroot/] then SubversionDownloadStrategy
+  when %r[^http://svn.apache.org/repos/] then SubversionDownloadStrategy
+  else CurlDownloadStrategy
   end
 end

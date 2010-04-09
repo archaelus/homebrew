@@ -96,9 +96,6 @@ def puts_columns items, cols = 4
   return if items.empty?
 
   if $stdout.tty?
-    items = items.join("\n") if items.is_a?(Array)
-    items.concat("\n") unless items.empty?
-
     # determine the best width to display for different console sizes
     console_width = `/bin/stty size`.chomp.split(" ").last.to_i
     console_width = 80 if console_width <= 0
@@ -106,7 +103,7 @@ def puts_columns items, cols = 4
     optimal_col_width = (console_width.to_f / (longest.length + 2).to_f).floor
     cols = optimal_col_width > 1 ? optimal_col_width : 1
 
-    IO.popen("/usr/bin/pr -#{cols} -t -w#{console_width}", "w"){|io| io.write(items) }
+    IO.popen("/usr/bin/pr -#{cols} -t -w#{console_width}", "w"){|io| io.puts(items) }
   else
     puts *items
   end
@@ -135,23 +132,24 @@ end
 
 # returns array of architectures suitable for -arch gcc flag
 def archs_for_command cmd
-    cmd = `/usr/bin/which #{cmd}` unless Pathname.new(cmd).absolute?
-    cmd.gsub! ' ', '\\ '
+  cmd = cmd.to_s # If we were passed a Pathname, turn it into a string.
+  cmd = `/usr/bin/which #{cmd}` unless Pathname.new(cmd).absolute?
+  cmd.gsub! ' ', '\\ '  # Escape spaces in the filename.
 
-    IO.popen("/usr/bin/file #{cmd}").readlines.inject(%w[]) do |archs, line|
-      case line
-      when /Mach-O executable ppc/
-        archs << :ppc7400
-      when /Mach-O 64-bit executable ppc64/
-        archs << :ppc64
-      when /Mach-O executable i386/
-        archs << :i386
-      when /Mach-O 64-bit executable x86_64/
-        archs << :x86_64
-      else
-        archs
-      end
+  IO.popen("/usr/bin/file #{cmd}").readlines.inject(%w[]) do |archs, line|
+    case line
+    when /Mach-O executable ppc/
+      archs << :ppc7400
+    when /Mach-O 64-bit executable ppc64/
+      archs << :ppc64
+    when /Mach-O executable i386/
+      archs << :i386
+    when /Mach-O 64-bit executable x86_64/
+      archs << :x86_64
+    else
+      archs
     end
+  end
 end
 
 # String extensions added by inreplace below.
@@ -160,14 +158,20 @@ module HomebrewInreplaceExtension
   # value with "new_value", or removes the definition entirely.
   def change_make_var! flag, new_value
     new_value = "#{flag}=#{new_value}"
-    gsub! Regexp.new("^#{flag}\\s*=\\s*(.*)$"), new_value
+    gsub! Regexp.new("^#{flag}[ \\t]*=[ \\t]*(.*)$"), new_value
   end
   # Removes variable assignments completely.
   def remove_make_var! flags
     flags.each do |flag|
       # Also remove trailing \n, if present.
-      gsub! Regexp.new("^#{flag}\\s*=(.*)$\n?"), ""
+      gsub! Regexp.new("^#{flag}[ \\t]*=(.*)$\n?"), ""
     end
+  end
+  # Finds the specified variable
+  def get_make_var flag
+    m = match Regexp.new("^#{flag}[ \\t]*=[ \\t]*(.*)$")
+    return m[1] if m
+    return nil
   end
 end
 

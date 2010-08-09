@@ -196,8 +196,17 @@ class Pathname
     children.select{ |child| child.directory? }
   end
 
+  def resolved_path
+    self.symlink? ? dirname+readlink : self
+  end
+
   def resolved_path_exists?
     (dirname+readlink).exist?
+  end
+
+  def starts_with? prefix
+    prefix = prefix.to_s
+    self.to_s[0, prefix.length] == prefix
   end
 end
 

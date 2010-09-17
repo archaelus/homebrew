@@ -1,22 +1,21 @@
 require 'formula'
 
 class ErlangManuals <Formula
-  url 'http://www.erlang.org/download/otp_doc_man_R13B04.tar.gz'
-  md5 '681aaef70affc64743f4e8c0675034af'
+  url 'http://www.erlang.org/download/otp_doc_man_R14B.tar.gz'
+
 end
 
 class ErlangHeadManuals <Formula
-  url 'http://www.erlang.org/download/otp_doc_man_R14A.tar.gz'
-  md5 'b57a7846818ad144b1b6ecc0a54de2ae'
+  url 'http://www.erlang.org/download/otp_doc_man_R14B.tar.gz'
 end
 
 class Erlang <Formula
   # Download from GitHub. Much faster than official tarball.
-  url "git://github.com/erlang/otp.git", :tag => "OTP_R13B04"
-  version 'R13B04'
+  url "git://github.com/erlang/otp.git", :tag => "OTP_R14B"
+  version 'R14B'
   homepage 'http://www.erlang.org'
 
-  head "git://github.com/erlang/otp.git", :tag => "OTP_R14A"
+  head "git://github.com/erlang/otp.git", :branch => "dev"
 
   # We can't strip the beam executables or any plugins, there isn't really
   # anything else worth stripping and it takes a really, long time to run
@@ -32,6 +31,7 @@ class Erlang <Formula
   def install
     ENV.deparallelize
     fails_with_llvm "see http://github.com/mxcl/homebrew/issues/issue/120"
+    ENV.gcc_4_2
 
     # If building from GitHub, this step is required (but not for tarball downloads.)
     system "./otp_build autoconf" if File.exist? "otp_build"
@@ -43,10 +43,9 @@ class Erlang <Formula
             "--enable-dynamic-ssl-lib",
             "--enable-smp-support"]
 
-    unless ARGV.include? '--disable-hipe'
-      # HIPE doesn't strike me as that reliable on OS X
-      # http://syntatic.wordpress.com/2008/06/12/macports-erlang-bus-error-due-to-mac-os-x-1053-update/
-      # http://www.erlang.org/pipermail/erlang-patches/2008-September/000293.html
+    if ARGV.include? '--disable-hipe'
+      args << '--disable-hipe'
+    else
       args << '--enable-hipe'
     end
 
@@ -59,9 +58,6 @@ class Erlang <Formula
 
     manuals = ARGV.build_head? ? ErlangHeadManuals : ErlangManuals
     manuals.new.brew { man.install Dir['man/*'] }
-
-    # See: http://github.com/mxcl/homebrew/issues/issue/1317
-    (lib+"erlang/lib/tools-2.6.5.1/emacs").install "lib/tools/emacs/erlang-skels.el"
   end
 
   def test

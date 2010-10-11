@@ -1,12 +1,13 @@
 require 'formula'
 
 class ErlangManuals <Formula
-  url 'http://www.erlang.org/download/otp_doc_man_R14B.tar.gz'
-
+  url 'http://erlang.org/download/otp_doc_man_R14B.tar.gz'
+  md5 '011530a24fbcc194be9bd01f779325a2'
 end
 
 class ErlangHeadManuals <Formula
-  url 'http://www.erlang.org/download/otp_doc_man_R14B.tar.gz'
+  url 'http://erlang.org/download/otp_doc_man_R14B.tar.gz'
+  md5 '011530a24fbcc194be9bd01f779325a2'
 end
 
 class Erlang <Formula
@@ -25,13 +26,16 @@ class Erlang <Formula
   skip_clean ['lib', 'bin']
 
   def options
-    [['--disable-hipe', "Disable building hipe; fails on various OS X systems."]]
+    [
+      ['--disable-hipe', "Disable building hipe; fails on various OS X systems."],
+      ['--time', '"brew test --time" to include a time-consuming test.']
+    ]
   end
 
   def install
     ENV.deparallelize
-    fails_with_llvm "see http://github.com/mxcl/homebrew/issues/issue/120"
-    ENV.gcc_4_2
+    fails_with_llvm "See http://github.com/mxcl/homebrew/issues/issue/120", :build => 2326
+    #ENV.gcc_4_2
 
     # If building from GitHub, this step is required (but not for tarball downloads.)
     system "./otp_build autoconf" if File.exist? "otp_build"
@@ -62,5 +66,11 @@ class Erlang <Formula
 
   def test
     `erl -noshell -eval 'crypto:start().' -s init stop`
+
+    # This test takes some time to run, but per bug #120 should finish in
+    # "less than 20 minutes". It takes a few minutes on a Mac Pro (2009).
+    if ARGV.include? "--time"
+      `dialyzer --build_plt -r #{lib}/erlang/lib/kernel-2.14.1/ebin/`
+    end
   end
 end

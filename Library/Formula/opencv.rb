@@ -1,10 +1,14 @@
 require 'formula'
 
 class Opencv <Formula
-  # Use head, don't install 2.1.0 due to a *massive* memory leak:
+  # Don't use stable 2.1.0 due to a massive memory leak:
   # https://code.ros.org/trac/opencv/ticket/253
-  head 'https://code.ros.org/svn/opencv/trunk/opencv', :using => :svn
+  url 'https://code.ros.org/svn/opencv/trunk/opencv', :using => :svn, :revision => '3478'
+  version "2.1.1-pre"
   homepage 'http://opencv.willowgarage.com/wiki/'
+
+  # NOTE: Head builds past the revision above may break on OS X
+  head 'https://code.ros.org/svn/opencv/trunk/opencv', :using => :svn
 
   depends_on 'cmake'
   depends_on 'pkg-config'
@@ -13,9 +17,9 @@ class Opencv <Formula
   depends_on 'jasper'  => :optional
   depends_on 'tbb'     => :optional
 
-  # Can also depend on ffmpeg, but this pulls in a lot of extra stuff that you don't
-  # need unless you're doing video analysis, and some of it isn't in Homebrew anyway.
-  # depends_on 'ffmpeg'
+  # Can also depend on ffmpeg, but this pulls in a lot of extra stuff that
+  # you don't need unless you're doing video analysis, and some of it isn't
+  # in Homebrew anyway.
 
   def install
     system "cmake -G 'Unix Makefiles' -DCMAKE_INSTALL_PREFIX:PATH=#{prefix} ."

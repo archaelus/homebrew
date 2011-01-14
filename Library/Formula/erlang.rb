@@ -29,6 +29,7 @@ class Erlang <Formula
     [
       ['--disable-hipe', "Disable building hipe; fails on various OS X systems."],
       ['--time', '"brew test --time" to include a time-consuming test.']
+      ['--build-plt', "Build the files necessary to use the Dialyzer static analysis tool."]
     ]
   end
 
@@ -58,6 +59,10 @@ class Erlang <Formula
     system "touch lib/wx/SKIP" if MACOS_VERSION >= 10.6
     system "make"
     system "make install"
+
+    if ARGV.include? '--build-plt'
+      system "dialyzer --build_plt --apps erts kernel stdlib mnesia sasl inets runtime_tools ssl compiler crypto public_key hipe mnesia"
+    end
 
     manuals = ARGV.build_head? ? ErlangHeadManuals : ErlangManuals
     manuals.new.brew { man.install Dir['man/*'] }

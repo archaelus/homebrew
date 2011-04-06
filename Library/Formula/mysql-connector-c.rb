@@ -7,9 +7,9 @@ class MysqlConnectorC < Formula
 
   depends_on 'cmake' => :build
 
+  fails_with_llvm "error: unsupported inline asm"
+
   def install
-    fails_with_llvm "error: unsupported inline asm"
-      ENV.gcc_4_2
     system "cmake . #{std_cmake_parameters}"
     system 'make'
     ENV.j1

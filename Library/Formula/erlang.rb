@@ -77,7 +77,9 @@ class Erlang < Formula
       htmls.new.brew { doc.install Dir['*'] }
     end
     if ARGV.include? '--build-plt'
-      system "dialyzer --plt #{lib}/erlang/dialyzer_plt --build_plt --apps erts kernel stdlib crypto public_key"
+      ohai "About to build the initial dialyzer plt. This will take a long time (~20mins)."
+      system "dialyzer --plt #{share}/dialyzer_plt --build_plt --apps erts kernel stdlib crypto public_key"
+      ohai "To use the plt, ln -s #{share}/dialyzer_plt ~/.dialyzer_plt, then run dialyzer."
     end
   end
 

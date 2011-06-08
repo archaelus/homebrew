@@ -1,9 +1,9 @@
 require 'formula'
 
 class Wrangler < Formula
-  url 'http://www.cs.kent.ac.uk/projects/forse/wrangler/wrangler-0.9/wrangler-0.9.2.3.tar.gz'
+  url 'http://www.cs.kent.ac.uk/projects/forse/wrangler/wrangler-0.9/wrangler-0.9.2.4.tar.gz'
   homepage 'http://www.cs.kent.ac.uk/projects/forse/'
-  md5 'c300841ca787ab95eb69292f8e12ab67'
+  md5 '0fa78c8ffb5d0169a41661adb70a5f50'
 
   depends_on 'erlang'
 

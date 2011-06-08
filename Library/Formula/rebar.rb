@@ -2,7 +2,6 @@ require 'formula'
 
 class Rebar <Formula
   url 'http://hg.basho.com/rebar/get/705c944d242e.bz2'
-  head 'git://github.com/basho/rebar.git'
   homepage 'http://hg.basho.com/rebar'
   md5 ''
   version '2010030801'

@@ -11,7 +11,8 @@ class Wireshark < Formula
   depends_on 'gtk+' if ARGV.include? "--with-x"
 
   def options
-    [["--with-x", "Include X11 support"]]
+    [["--with-x", "Include X11 support"],
+     ["--install-headers", "Install development headers."]]
   end
 
   def install
@@ -20,10 +21,24 @@ class Wireshark < Formula
     # actually just disables the GTK GUI
     args << "--disable-wireshark" if not ARGV.include? "--with-x"
 
+    ENV.append_to_cflags '-O0'
     system "./configure", *args
     system "make"
     ENV.j1 # Install failed otherwise.
     system "make install"
+    if ARGV.include? '--install-headers' then
+      # headers
+      inc = include + 'wireshark'
+      inc.install Dir['*.h']
+      epan = inc + 'epan'
+      epan.install Dir['epan/*.h']
+
+      ['crypt','dfilter','dissectors','ftypes'].each { |d|
+        (epan + d).install Dir['epan/' + d + '/*.h']
+      }
+
+      (inc + 'wiretap').install Dir['wiretap/*.h']
+    end
   end
 
   def caveats; <<-EOS.undent

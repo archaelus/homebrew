@@ -5,9 +5,26 @@ class Auctex < Formula
   homepage 'http://ftp.gnu.org/pub/gnu/auctex'
   md5 '6bc33a67b6ac59db1aa238f3693b36d2'
 
+  def options
+    [
+     ['--with-emacs=/full/path/to/emacs>', "Force a different emacs"]
+    ]
+  end
+
+  def which_emacs
+    emacs = `which emacs`.chomp
+    # check arguments for a different emacs
+    ARGV.each do |a|
+      if a.index('--with-emacs')
+        emacs = a.sub('--with-emacs=', '')
+      end
+    end
+    return emacs
+  end
+
   def install
     # based on the asymtote formula LaTeX check
-    if `which latex`.strip == ''
+    if `which latex`.chomp == ''
       onoe <<-EOS.undent
         AUCTeX requires a TeX/LaTeX installation; aborting now.
         You can obtain the TeX distribution for Mac OS X from
@@ -15,25 +32,46 @@ class Auctex < Formula
       EOS
       Process.exit
     end
-    texmf = `kpsewhich -var-value=TEXMFHOME`.strip
-    emacs = `which emacs`.strip
-    lispdir = File.join ENV['HOME'], '.emacs.d', 'auctex'
-    system "./configure", "--prefix=#{prefix}", "--with-texmf-dir=#{texmf}",
-                          "--with-emacs=#{emacs}", "--with-lispdir=#{lispdir}"
+
+    brew_lispdir = share + 'emacs' + 'site-lisp'
+    brew_texmf = share + 'texmf'
+    # configure fails if the texmf dir is not there yet
+    brew_texmf.mkpath
+
+    system "./configure", "--prefix=#{prefix}", "--with-texmf-dir=#{brew_texmf}",
+                          "--with-emacs=#{which_emacs}", "--with-lispdir=#{brew_lispdir}"
+
     system "make"
+    ENV.deparallelize # Needs a serialized install
     system "make install"
   end
 
-  def caveats; <<-EOS.undent
+  def caveats
+    # check if the used emacs is in HOMEBREW_PREFIX/bin
+    # for which case HOMEBREW_PREFIX/share/emacs/site-lisp should already
+    # be by default in the load-path
+    if which_emacs.index("#{HOMEBREW_PREFIX}/bin")
+      dot_emacs = <<-EOS
+        (require 'tex-site)
+      EOS
+    else
+      dot_emacs = <<-EOS
+        (add-to-list 'load-path "#{HOMEBREW_PREFIX}/share/emacs/site-lisp")
+        (require 'tex-site)
+      EOS
+    end
+
+    puts <<-EOS.undent
     * texmf files installed into
-      ~/Library/texmf/tex/preview
+        #{HOMEBREW_PREFIX}/share/texmf/
+      you can add it to your TEXMFHOME using:
+        sudo tlmgr conf texmf TEXMFHOME "~/Library/texmf:#{HOMEBREW_PREFIX}/share/texmf"
 
     * Emacs package installed into
-      ~/.emacs.d/auctex
-
-    * to activate add the following to your .emacs
-      (add-to-list 'load-path "~/.emacs.d/auctex")
-      (require 'tex-site)
+        #{HOMEBREW_PREFIX}/share/emacs/site-lisp
+      to activate add the following to your .emacs:
+#{dot_emacs}
     EOS
   end
+
 end

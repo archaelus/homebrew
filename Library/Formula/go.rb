@@ -20,6 +20,7 @@ class Go < Formula
   def install
     prefix.install %w[src include test doc misc lib favicon.ico AUTHORS]
     Dir.chdir prefix
+    system "echo '#{VERSION}' > VERSION"
     mkdir %w[pkg bin]
 
     Dir.chdir 'src' do

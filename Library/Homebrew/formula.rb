@@ -559,11 +559,14 @@ private
     downloader = @downloader
     mirror_list = mirrors
 
+    # Ensure the cache exists
+    HOMEBREW_CACHE.mkpath
+
     begin
       fetched = downloader.fetch
-    rescue DownloadError => e
+    rescue CurlDownloadStrategyError => e
       raise e if mirror_list.empty?
-      opoo "#{e.message}\nTrying a mirror."
+      puts "Trying a mirror..."
       url, specs = mirror_list.shift.values_at :url, :specs
       downloader = download_strategy.new url, name, version, specs
       retry
@@ -606,7 +609,6 @@ EOF
   private
 
   def stage
-    HOMEBREW_CACHE.mkpath
     fetched, downloader = fetch
     verify_download_integrity fetched if fetched.kind_of? Pathname
     mktemp do

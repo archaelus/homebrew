@@ -16,9 +16,9 @@ class Wxpython < Formula
 end
 
 class Wxmac < Formula
-  url 'http://downloads.sourceforge.net/project/wxwindows/2.8.11/wxMac-2.8.11.tar.bz2'
+  url 'http://downloads.sourceforge.net/project/wxwindows/2.9.2/wxWidgets-2.9.2.tar.bz2'
   homepage 'http://www.wxwidgets.org'
-  md5 '8d84bfdc43838e2d2f75031f62d1864f'
+  md5 'd6cec5bd331ba90b74c1e2fcb0563620'
 
   def options
     [
@@ -76,15 +76,13 @@ class Wxmac < Formula
   def install
     test_python_arch if build_python?
 
-    # Force i386
-    %w{ CFLAGS CXXFLAGS LDFLAGS OBJCFLAGS OBJCXXFLAGS }.each do |compiler_flag|
-      ENV.remove compiler_flag, "-arch x86_64"
-      ENV.append compiler_flag, "-arch i386"
-    end
-
     system "./configure", "--disable-debug", "--disable-dependency-tracking",
                           "--prefix=#{prefix}",
-                          "--enable-unicode"
+                          "--enable-unicode",
+                          "--with-osx_cocoa",
+                          "--enable-macosx_arch=x86_64",
+                          "--with-macosx-sdk=/Developer/SDKs/MacOSX10.6.sdk",
+                          "--with-macosx-version-min=10.6"
     system "make install"
 
     if build_python?

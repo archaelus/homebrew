@@ -20,10 +20,13 @@ class Gnupg < Formula
     [
       ["--idea", "Build with (patented) IDEA cipher"],
       ["--8192", "Build with support for private keys up to 8192 bits"],
+      ["--universal", "Build universal binary"],
     ]
   end
 
   def install
+    ENV.universal_binary if ARGV.include? '--universal'
+
     if ARGV.include? '--idea'
       opoo "You are building with support for the patented IDEA cipher."
       d=Pathname.getwd

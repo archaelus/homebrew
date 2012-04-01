@@ -1,19 +1,18 @@
 require 'formula'
 
 class Exiftool < Formula
-  url 'http://www.sno.phy.queensu.ca/~phil/exiftool/Image-ExifTool-8.75.tar.gz'
   homepage 'http://www.sno.phy.queensu.ca/~phil/exiftool/index.html'
-  md5 'c1bffbb9928353ab3a683b1d2126df9f'
+  url 'http://www.sno.phy.queensu.ca/~phil/exiftool/Image-ExifTool-8.85.tar.gz'
+  md5 '3bb1b595473a91da5757ca8d5f5703af'
 
   def install
     system "perl", "Makefile.PL"
     system "make", "test"
 
     # Install privately to the Cellar
-    libexec.install ["exiftool", "lib"]
+    libexec.install "exiftool", "lib"
 
     # Link the executable script into "bin"
-    bin.mkpath
     (bin + 'exiftool').write <<-EOBIN
 #!/bin/bash
 

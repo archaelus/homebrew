@@ -1,9 +1,9 @@
 require 'formula'
 
 class Nmap < Formula
-  homepage 'http://nmap.org/5/'
-  url 'http://nmap.org/dist/nmap-5.51.tar.bz2'
-  md5 '0b80d2cb92ace5ebba8095a4c2850275'
+  homepage 'http://nmap.org/6/'
+  url 'http://nmap.org/dist/nmap-6.00.tar.bz2'
+  md5 'e365cdada811c57e172b24b62746ab7d'
 
   head 'https://guest:@svn.nmap.org/nmap/', :using => :svn
 
@@ -19,9 +19,9 @@ class Nmap < Formula
   # GCC/gcc-llvm. This small patch fixes the issues so that the project will
   # compile without issues with clang as well. See:
   # https://github.com/mxcl/homebrew/issues/10300
-  def patches
-    DATA
-  end
+  # def patches
+  #   DATA
+  # end
 
   def install
     ENV.deparallelize

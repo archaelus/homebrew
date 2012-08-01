@@ -49,7 +49,15 @@ module Homebrew extend self
   def info_formula f
     exec 'open', github_info(f) if ARGV.flag? '--github'
 
-    puts "#{f.name} #{f.version}"
+    specs = []
+    stable = "stable #{f.stable.version}" if f.stable
+    stable += " (bottled)" if f.bottle and bottles_supported?
+    specs << stable if stable
+    specs << "devel #{f.devel.version}" if f.devel
+    specs << "HEAD" if f.head
+
+    puts "#{f.name}: #{specs*', '}"
+
     puts f.homepage
 
     if f.keg_only?
@@ -60,6 +68,11 @@ module Homebrew extend self
     end
 
     puts "Depends on: #{f.deps*', '}" unless f.deps.empty?
+    conflicts = []
+    f.external_deps.each do |dep|
+      conflicts << dep.formula if dep.is_a? ConflictRequirement
+    end
+    puts "Conflicts with: #{conflicts*', '}" unless conflicts.empty?
 
     if f.rack.directory?
       kegs = f.rack.children

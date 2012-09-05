@@ -11,17 +11,14 @@ class Wireshark < Formula
   depends_on 'pcre' => :optional
   depends_on 'glib'
 
-  if ARGV.include? '--with-x'
+  if build.include? 'with-x'
     depends_on :x11
     depends_on 'gtk+'
   end
 
-  def options
-    [["--with-x", "Include X11 support"],
-     ["--install-headers", "Install development headers."],
-     ['--with-python', 'Enable experimental python bindings']
-    ]
-  end
+  option 'with-x', 'Include X11 support'
+  option 'with-python', 'Enable experimental Python bindings'
+  option 'install-headers', 'Install c header files'
 
   def install
     args = ["--disable-dependency-tracking", "--prefix=#{prefix}"]
@@ -29,10 +26,10 @@ class Wireshark < Formula
     # Optionally enable experimental python bindings; is known to cause
     # some runtime issues, e.g.
     # "dlsym(0x8fe467fc, py_create_dissector_handle): symbol not found"
-    args << '--without-python' unless ARGV.include? '--with-python'
+    args << '--without-python' unless build.include? 'with-python'
 
     # actually just disables the GTK GUI
-    args << '--disable-wireshark' unless ARGV.include? '--with-x'
+    args << '--disable-wireshark' unless build.include? 'with-x'
 
     ENV.append_to_cflags '-O0'
     system "./configure", *args

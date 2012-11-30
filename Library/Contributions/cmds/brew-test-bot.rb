@@ -3,10 +3,12 @@
 # Usage: brew test-bot [options...] <pull-request|formula>
 #
 # Options:
-# --log:     Writes log files under ./brewbot/
-# --html:    Writes html and log files under ./brewbot/
-# --comment: Comment on the pull request
-# --clean:   Clean the Homebrew directory. Very dangerous. Use with care.
+# --log:          Writes log files under ./brewbot/
+# --html:         Writes html and log files under ./brewbot/
+# --comment:      Comment on the pull request
+# --cleanup:      Clean the Homebrew directory. Very dangerous. Use with care.
+# --skip-cleanup: Don't check for uncommitted changes.
+# --skip-setup:   Don't check the local system is setup correctly.
 
 require 'formula'
 require 'utils'
@@ -15,7 +17,7 @@ require 'date'
 HOMEBREW_CONTRIBUTED_CMDS = HOMEBREW_REPOSITORY + "Library/Contributions/cmds/"
 
 class Step
-  attr_reader :command
+  attr_reader :command, :repository
   attr_accessor :status
 
   def initialize test, command
@@ -24,6 +26,7 @@ class Step
     @command = command
     @name = command.split[1].delete '-'
     @status = :running
+    @repository = HOMEBREW_REPOSITORY
     @test.steps << self
     write_html
   end
@@ -67,13 +70,29 @@ class Step
     end
   end
 
-  def self.run test, command
+  def self.run test, command, puts_output = false
     step = new test, command
     step.puts_command
-    `#{step.command} &>#{step.log_file_path}`
+
+    command = "#{step.command}"
+    unless puts_output and not ARGV.include? "--log"
+      command += " &>#{step.log_file_path}"
+    end
+
+    output = nil
+    if command.start_with? 'git '
+      Dir.chdir step.repository do
+        output = `#{command}`
+      end
+    else
+      output = `#{command}`
+    end
+    output = IO.read(step.log_file_path) if ARGV.include? "--log"
+
     step.status = $?.success? ? :passed : :failed
     step.puts_result
     step.write_html
+    puts output if puts_output and output and not output.empty?
   end
 end
 
@@ -88,19 +107,24 @@ class Test
     return @@commit_html, @@css
   end
 
-  def initialize arg
-    begin
-      Formula.factory arg
-    rescue FormulaUnavailableError
-      odie "#{arg} is not a pull request number or formula." unless arg.to_i > 0
-      @url = arg
-      @formulae = []
+  def initialize argument
+    @start_sha1 = nil
+    @url = nil
+    @formulae = []
+
+    url_match = argument.match HOMEBREW_PULL_URL_REGEX
+    formula = Formula.factory argument rescue FormulaUnavailableError
+    git("rev-parse --verify #{argument} &>/dev/null")
+    if $?.success?
+      @start_sha1 = argument
+    elsif url_match
+      @url = url_match[0]
+    elsif formula
+      @formulae = [argument]
     else
-      @url = nil
-      @formulae = [arg]
+      odie "#{argument} is not a pull request URL, commit URL or formula name."
     end
 
-    @start_sha1 = nil
     @category = __method__
     @steps = []
     @core_changed = false
@@ -141,36 +165,45 @@ class Test
     end
   end
 
+  def git arguments
+    Dir.chdir HOMEBREW_REPOSITORY do
+      `git #{arguments}`
+    end
+  end
+
   def download
     def current_sha1
-      `git rev-parse --short HEAD`.strip
+      git('rev-parse --short HEAD').strip
     end
 
     def current_branch
-      `git symbolic-ref HEAD`.slice!("refs/heads/").strip
+      git('symbolic-ref HEAD').slice!("refs/heads/").strip
     end
 
     @category = __method__
-    if @url
-      `git am --abort 2>/dev/null`
+    if @start_sha1
+      end_sha1 = @start_sha1
+      @start_sha1 = "#{@start_sha1}^"
+      @name = end_sha1
+    elsif @url
+      git 'am --abort 2>/dev/null'
       test "brew update" if current_branch == "master"
       @start_sha1 = current_sha1
       test "brew pull --clean #{@url}"
       end_sha1 = current_sha1
+      return unless @url and @start_sha1 != end_sha1 and steps.last.status == :passed
+      @name = "#{@url}-#{end_sha1}"
     else
       @start_sha1 = end_sha1 = current_sha1
+      @name = "#{@formulae.first}-#{end_sha1}"
     end
 
-    name_prefix = @url ? @url : @formulae.first
-    @name = "#{name_prefix}-#{end_sha1}"
     @log_root = @brewbot_root + @name
     FileUtils.mkdir_p @log_root if ARGV.include? "--log" or ARGV.include? "--html"
 
     write_root_html :running
 
-    return unless @url and @start_sha1 != end_sha1 and steps.last.status == :passed
-
-    `git diff #{@start_sha1}..#{end_sha1} --name-status`.each_line do |line|
+    git("diff #{@start_sha1}..#{end_sha1} --name-status").each_line do |line|
       status, filename = line.split
       # Don't try and do anything to removed files.
       if (status == 'A' or status == 'M')
@@ -178,8 +211,9 @@ class Test
           @formulae << File.basename(filename, '.rb')
         end
       end
-      if filename.include? '/Homebrew/' or filename.include? 'bin/brew'
-        @homebrew_changed = true
+      if filename.include? '/Homebrew/' or filename.include? '/ENV/' \
+        or filename.include? 'bin/brew'
+        @core_changed = true
       end
     end
   end
@@ -196,32 +230,37 @@ class Test
     @category = __method__.to_s + ".#{formula}"
 
     test "brew audit #{formula}"
+    test "brew fetch --deps #{formula}"
     test "brew install --verbose --build-bottle #{formula}"
     return unless steps.last.status == :passed
+    test "brew bottle #{formula}", true
     test "brew test #{formula}" if defined? Formula.factory(formula).test
-    test "brew bottle #{formula}"
     test "brew uninstall #{formula}"
   end
 
   def homebrew
     @category = __method__
     test "brew tests"
+    test "brew readall"
   end
 
   def cleanup
     @category = __method__
-    if ARGV.include? "--clean"
+    if ARGV.include? "--cleanup"
+      test "git fetch origin"
       test "git reset --hard origin/master"
+      test "brew cleanup"
       test "git clean --force -dx"
-    else
-      `git diff --exit-code HEAD 2>/dev/null`
-      odie "Uncommitted changes, aborting." unless $?.success?
+      test "git gc"
+    elsif not ARGV.include? "--skip-cleanup"
+      git('diff --exit-code HEAD 2>/dev/null')
+      odie "uncommitted changes, aborting." unless $?.success?
       test "git reset --hard #{@start_sha1}" if @start_sha1
     end
   end
 
-  def test cmd
-    Step.run self, cmd
+  def test cmd, puts_output = false
+    Step.run self, cmd, puts_output
   end
 
   def check_results
@@ -252,27 +291,28 @@ class Test
     end
   end
 
-  def self.run url
-    test = new url
-    test.cleanup
+  def self.run argument
+    test = new argument
+    test.cleanup unless ARGV.include? "--skip-cleanup"
     test.download
-    test.setup
-    test.formulae.each do |f|
-      test.formula f
+    test.setup unless ARGV.include? "--skip-setup"
+    test.formulae.each do |formula|
+      test.formula formula
     end
     test.homebrew if test.core_changed
-    test.cleanup
+    test.cleanup unless ARGV.include? "--skip-cleanup"
 
     test.check_results
   end
 end
 
-if ARGV.empty?
-  odie 'This command requires at least one argument containing a pull request number or formula.'
+if Pathname.pwd == HOMEBREW_PREFIX and ARGV.include? "--cleanup"
+  odie 'cannot use --cleanup from HOMEBREW_PREFIX as it will delete all output.'
 end
 
-Dir.chdir HOMEBREW_REPOSITORY
-
-ARGV.named.each do|arg|
-  Test.run arg
+if ARGV.named.empty?
+  # With no arguments just build the most recent commit.
+  Test.run 'HEAD'
+else
+  ARGV.named.each { |argument| Test.run argument }
 end

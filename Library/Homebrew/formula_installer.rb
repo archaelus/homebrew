@@ -73,6 +73,12 @@ class FormulaInstaller
       needed_deps = []
       needed_reqs = []
 
+      # HACK: If readline is present in the dependency tree, it will clash
+      # with the stdlib's Readline module when the debugger is loaded
+      if f.recursive_deps.any? { |d| d.name == "readline" } and ARGV.debug?
+        ENV['HOMEBREW_NO_READLINE'] = '1'
+      end
+
       ARGV.filter_for_dependencies do
         needed_deps = f.recursive_deps.reject{ |d| d.installed? }
         needed_reqs = f.recursive_requirements.reject { |r| r.satisfied? }
@@ -146,16 +152,14 @@ class FormulaInstaller
       ohai 'Caveats', f.keg_only_text
       @show_summary_heading = true
     else
-      audit_bin
-      audit_sbin
-      audit_lib
-      check_manpages
-      check_infopages
-      check_m4
+      #audit_bin
+      #audit_sbin
+      #audit_lib
+      #check_manpages
+      #check_infopages
     end
 
     keg = Keg.new(f.prefix)
-
     if keg.completion_installed? :bash
       ohai 'Caveats', <<-EOS.undent
         Bash completion has been installed to:
@@ -168,6 +172,45 @@ class FormulaInstaller
         zsh completion has been installed to:
           #{HOMEBREW_PREFIX}/share/zsh/site-functions
         EOS
+    end
+
+    if f.plist or keg.plist_installed?
+      if f.plist_startup and false
+        destination = '/Library/LaunchDaemons'
+      else
+        destination = '~/Library/LaunchAgents'
+      end
+
+      plist_filename = f.plist_path.basename
+      plist_link = "#{destination}/#{plist_filename}"
+      plist_domain = f.plist_path.basename('.plist')
+      launchctl_load = "launchctl load -w #{plist_link}"
+      destination_path = Pathname.new File.expand_path destination
+      plist_path = destination_path/plist_filename
+      s = []
+
+      # we readlink because this path probably doesn't exist since caveats
+      # occurs before the link step of installation
+      if not (plist_path).file? and not (plist_path).symlink?
+        s << "To have launchd start #{f.name} at login:"
+        s << "    mkdir -p #{destination}" unless destination_path.directory?
+        s << "    ln -sfv #{HOMEBREW_PREFIX}/opt/#{f.name}/*.plist #{destination}" #sudo
+        s << "Then to load #{f.name} now:"
+        s << "    #{launchctl_load}"
+        if f.plist_manual
+          s << "Or, if you don't want/need launchctl, you can just run:"
+          s << "    #{f.plist_manual}"
+        end
+      elsif Kernel.system "/bin/launchctl list #{plist_domain} &>/dev/null"
+        s << "You should reload #{f.name}:"
+        s << "    launchctl unload -w #{plist_link}"
+        s << "    #{launchctl_load}"
+      else
+        s << "To load #{f.name}:"
+        s << "    #{launchctl_load}"
+      end
+
+      ohai 'Caveats', s
     end
   end
 
@@ -283,11 +326,11 @@ class FormulaInstaller
   end
 
   def install_plist
-    # Install a plist if one is defined
-    if f.startup_plist and not f.plist_path.exist?
-      f.plist_path.write f.startup_plist
-      f.plist_path.chmod 0644
-    end
+    return unless f.plist
+    # A plist may already exist if we are installing from a bottle
+    f.plist_path.unlink if f.plist_path.exist?
+    f.plist_path.write f.plist
+    f.plist_path.chmod 0644
   end
 
   def fix_install_names
@@ -429,25 +472,6 @@ class FormulaInstaller
   def audit_lib
     check_jars
     check_non_libraries
-  end
-
-  def check_m4
-    # Newer versions of Xcode don't come with autotools
-    return unless MacOS::Xcode.provides_autotools?
-
-    # If the user has added our path to dirlist, don't complain
-    return if File.open("/usr/share/aclocal/dirlist") do |dirlist|
-      dirlist.grep(%r{^#{HOMEBREW_PREFIX}/share/aclocal$}).length > 0
-    end rescue false
-
-    # Check for installed m4 files
-    if Dir[f.share+"aclocal/*.m4"].length > 0
-      opoo 'm4 macros were installed to "share/aclocal".'
-      puts "Homebrew does not append \"#{HOMEBREW_PREFIX}/share/aclocal\""
-      puts "to \"/usr/share/aclocal/dirlist\". If an autoconf script you use"
-      puts "requires these m4 macros, you'll need to add this path manually."
-      @show_summary_heading = true
-    end
   end
 end
 

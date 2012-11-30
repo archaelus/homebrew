@@ -78,10 +78,7 @@ class Formula
   end
 
   def explicitly_requested?
-    # `ARGV.formulae` will throw an exception if it comes up with an empty list.
-    # FIXME: `ARGV.formulae` shouldn't be throwing exceptions, see issue #8823
-   return false if ARGV.named.empty?
-   ARGV.formulae.include? self
+    ARGV.formulae.include?(self) rescue false
   end
 
   def linked_keg
@@ -142,10 +139,13 @@ class Formula
   def var; HOMEBREW_PREFIX+'var' end
 
   # override this to provide a plist
-  def startup_plist; nil; end
+  def plist; nil; end
+  alias :startup_plist :plist
   # plist name, i.e. the name of the launchd service
   def plist_name; 'homebrew.mxcl.'+name end
   def plist_path; prefix+(plist_name+'.plist') end
+  def plist_manual; self.class.plist_manual end
+  def plist_startup; self.class.plist_startup end
 
   def build
     self.class.build
@@ -395,6 +395,8 @@ class Formula
       raise LoadError
     end
 
+    raise NameError if !klass.ancestors.include? Formula
+
     return klass.new(name) if install_type == :from_name
     return klass.new(name, path.to_s)
   rescue NoMethodError
@@ -546,12 +548,13 @@ protected
         f.puts
         require 'cmd/--config'
         Homebrew.write_build_config(f)
-        raise BuildError.new(self, cmd, args, $?)
+        raise ErrorDuringExecution
       end
     end
-
+  rescue ErrorDuringExecution => e
+    raise BuildError.new(self, cmd, args, $?)
   ensure
-    f.close if f
+    f.close if f and not f.closed?
     removed_ENV_variables.each do |key, value|
       ENV[key] = value
     end if removed_ENV_variables
@@ -635,6 +638,7 @@ private
     end
 
     attr_rw :homepage, :keg_only_reason, :skip_clean_all, :cc_failures
+    attr_rw :plist_startup, :plist_manual
 
     Checksum::TYPES.each do |cksum|
       class_eval %Q{
@@ -719,20 +723,13 @@ private
       build.add name, description
     end
 
-    def conflicts_with formula, opts={}
-      message = <<-EOS.undent
-      #{formula} cannot be installed alongside #{name.downcase}.
-      EOS
-      message << "This is because #{opts[:because]}\n" if opts[:because]
-      unless ARGV.force? then message << <<-EOS.undent
-        Please `brew unlink #{formula}` before continuing. Unlinking removes
-        the formula's symlinks from #{HOMEBREW_PREFIX}. You can link the
-        formula again after the install finishes. You can --force this install
-        but the build may fail or cause obscure side-effects in the end-binary.
-        EOS
-      end
+    def plist_options options
+      @plist_startup = options[:startup]
+      @plist_manual = options[:manual]
+    end
 
-      dependencies.add ConflictRequirement.new(formula, message)
+    def conflicts_with formula, opts={}
+      dependencies.add ConflictRequirement.new(formula, name, opts)
     end
 
     def skip_clean *paths

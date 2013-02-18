@@ -1,4 +1,5 @@
 require 'extend/pathname'
+require 'formula_lock'
 
 class Keg < Pathname
   def initialize path
@@ -35,9 +36,9 @@ class Keg < Pathname
     # of files and directories linked
     $n=$d=0
 
-    TOP_LEVEL_DIRECTORIES.map{ |d| self/d }.each do |src|
-      next unless src.exist?
-      src.find do |src|
+    TOP_LEVEL_DIRECTORIES.map{ |d| self/d }.each do |dir|
+      next unless dir.exist?
+      dir.find do |src|
         next if src == self
         dst=HOMEBREW_PREFIX+src.relative_path_from(self)
         dst.extend ObserverPathnameExtension
@@ -59,6 +60,10 @@ class Keg < Pathname
 
   def fname
     parent.basename.to_s
+  end
+
+  def lock
+    FormulaLock.new(fname).with_lock { yield }
   end
 
   def linked_keg_record

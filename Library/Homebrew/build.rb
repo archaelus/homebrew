@@ -65,12 +65,22 @@ end
 def pre_superenv_hacks f
   # Allow a formula to opt-in to the std environment.
   ARGV.unshift '--env=std' if (f.env.std? or
-    f.recursive_deps.detect{|d| d.name == 'scons' }) and
+    f.recursive_dependencies.detect{|d| d.name == 'scons' }) and
     not ARGV.include? '--env=super'
 end
 
+def expand_deps f
+  f.recursive_dependencies do |dependent, dep|
+    if dep.optional? || dep.recommended?
+      Dependency.prune unless dependent.build.with?(dep.name)
+    elsif dep.build?
+      Dependency.prune unless dependent == f
+    end
+  end.map(&:to_formula)
+end
+
 def install f
-  deps = f.recursive_deps
+  deps = expand_deps(f)
   keg_only_deps = deps.select(&:keg_only?)
 
   pre_superenv_hacks(f)
@@ -83,8 +93,8 @@ def install f
 
   if superenv?
     ENV.deps = keg_only_deps.map(&:to_s)
-    ENV.all_deps = f.recursive_deps.map(&:to_s)
-    ENV.x11 = f.recursive_requirements.detect{|rq| rq.class == X11Dependency }
+    ENV.all_deps = deps.map(&:to_s)
+    ENV.x11 = f.recursive_requirements.detect { |rq| rq.kind_of?(X11Dependency) }
     ENV.setup_build_environment
     post_superenv_hacks(f)
     f.recursive_requirements.each(&:modify_build_environment)

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# encoding: UTF-8
 
 require 'exceptions'
 require 'formula'
@@ -25,7 +25,7 @@ class FormulaInstaller
   end
 
   def pour_bottle?
-    install_bottle?(f) && (tab.used_options.empty? rescue true) && options.empty?
+    (tab.used_options.empty? rescue true) && options.empty? && install_bottle?(f, true)
   end
 
   def check_install_sanity
@@ -92,9 +92,17 @@ class FormulaInstaller
 
     @@attempted << f
 
-    if pour_bottle?
-      pour
-    else
+    poured_bottle = false
+    begin
+      if pour_bottle?
+        pour
+        poured_bottle = true
+      end
+    rescue
+      opoo "Bottle installation failed: building from source."
+    end
+
+    unless poured_bottle
       build
       clean
     end

@@ -1,43 +1,39 @@
 require 'formula'
 
-def build_java?;   build.include? "java";   end
-def build_perl?;   build.include? "perl";   end
-def build_python?; build.include? "python"; end
-def build_ruby?;   build.include? "ruby";   end
-def with_unicode_path?; build.include? "unicode-path"; end
-
 class Subversion < Formula
   homepage 'http://subversion.apache.org/'
-  url 'http://www.apache.org/dyn/closer.cgi?path=subversion/subversion-1.7.8.tar.bz2'
-  sha1 '12c7d8d5414bba74c9777c4d1dae74f152df63c2'
+  url 'http://www.apache.org/dyn/closer.cgi?path=subversion/subversion-1.7.10.tar.bz2'
+  sha1 'a4f3de0a13b034b0eab4d35512c6c91a4abcf4f5'
 
   option :universal
   option 'java', 'Build Java bindings'
   option 'perl', 'Build Perl bindings'
-  option 'python', 'Build Python bindings'
   option 'ruby', 'Build Ruby bindings'
   option 'unicode-path', 'Include support for OS X UTF-8-MAC filename'
 
   depends_on 'pkg-config' => :build
 
   # Always build against Homebrew versions instead of system versions for consistency.
-  depends_on 'neon'
   depends_on 'sqlite'
   depends_on 'serf'
+  depends_on :python => :optional
 
   # Building Ruby bindings requires libtool
-  depends_on :libtool if build_ruby?
+  depends_on :libtool if build.include? 'ruby'
+
+  # If building bindings, allow non-system interpreters
+  env :userpaths if (build.include? 'perl') or (build.include? 'ruby')
 
   def patches
     ps = []
 
     # Patch for Subversion handling of OS X UTF-8-MAC filename.
-    if with_unicode_path?
+    if build.include? 'unicode-path'
       ps << "https://raw.github.com/gist/3044094/1648c28f6133bcbb68b76b42669b0dc237c02dba/patch-path.c.diff"
     end
 
     # Patch to prevent '-arch ppc' from being pulled in from Perl's $Config{ccflags}
-    if build_perl?
+    if build.include? 'perl'
       ps << DATA
     end
 
@@ -46,24 +42,20 @@ class Subversion < Formula
     end
   end
 
-  # When building Perl, Python or Ruby bindings, need to use a compiler that
+  # When building Perl or Ruby bindings, need to use a compiler that
   # recognizes GCC-style switches, since that's what the system languages
   # were compiled against.
   fails_with :clang do
     build 318
     cause "core.c:1: error: bad value (native) for -march= switch"
-  end if build_perl? or build_python? or build_ruby?
+  end if (build.include? 'perl') or (build.include? 'ruby')
 
   def apr_bin
     superbin or "/usr/bin"
   end
 
   def install
-    # We had weird issues with "make" apparently hanging on first run:
-    # https://github.com/mxcl/homebrew/issues/13226
-    ENV.deparallelize
-
-    if build_java?
+    if build.include? 'java'
       unless build.universal?
         opoo "A non-Universal Java build was requested."
         puts "To use Java bindings with various Java IDEs, you might need a universal build:"
@@ -87,15 +79,15 @@ class Subversion < Formula
             "--with-zlib=/usr",
             "--with-sqlite=#{Formula.factory('sqlite').opt_prefix}",
             "--with-serf=#{Formula.factory('serf').opt_prefix}",
-            # use our neon, not OS X's
-            "--disable-neon-version-check",
+            "--without-neon",
             "--disable-mod-activation",
+            "--disable-nls",
             "--without-apache-libexecdir",
             "--without-berkeley-db"]
 
-    args << "--enable-javahl" << "--without-jikes" if build_java?
+    args << "--enable-javahl" << "--without-jikes" if build.include? 'java'
 
-    if build_ruby?
+    if build.include? 'ruby'
       args << "--with-ruby-sitedir=#{lib}/ruby"
       # Peg to system Ruby
       args << "RUBY=/usr/bin/ruby"
@@ -108,14 +100,26 @@ class Subversion < Formula
     system "./configure", *args
     system "make"
     system "make install"
-    (prefix+'etc/bash_completion.d').install 'tools/client-side/bash_completion' => 'subversion'
+    bash_completion.install 'tools/client-side/bash_completion' => 'subversion'
 
-    if build_python?
+    system "make tools"
+    system "make install-tools"
+    %w[
+      svn-populate-node-origins-index
+      svn-rep-sharing-stats
+      svnauthz-validate
+      svnmucc
+      svnraisetreeconflict
+    ].each do |prog|
+      bin.install_symlink bin/"svn-tools"/prog
+    end
+
+    python do
       system "make swig-py"
       system "make install-swig-py"
     end
 
-    if build_perl?
+    if build.include? 'perl'
       # Remove hard-coded ppc target, add appropriate ones
       if build.universal?
         arches = "-arch x86_64 -arch i386"
@@ -138,12 +142,12 @@ class Subversion < Formula
       system "make", "install-swig-pl", "DESTDIR=#{prefix}"
     end
 
-    if build_java?
+    if build.include? 'java'
       system "make javahl"
       system "make install-javahl"
     end
 
-    if build_ruby?
+    if build.include? 'ruby'
       # Peg to system Ruby
       system "make swig-rb EXTRA_SWIG_LDFLAGS=-L/usr/lib"
       system "make install-swig-rb"
@@ -153,15 +157,9 @@ class Subversion < Formula
   def caveats
     s = ""
 
-    if build_python?
-      s += <<-EOS.undent
-        You may need to add the Python bindings to your PYTHONPATH from:
-          #{HOMEBREW_PREFIX}/lib/svn-python
+    s += python.standard_caveats if python
 
-      EOS
-    end
-
-    if build_perl?
+    if build.include? 'perl'
       s += <<-EOS.undent
         The perl bindings are located in various subdirectories of:
           #{prefix}/Library/Perl
@@ -169,7 +167,7 @@ class Subversion < Formula
       EOS
     end
 
-    if build_ruby?
+    if build.include? 'ruby'
       s += <<-EOS.undent
         You may need to add the Ruby bindings to your RUBYLIB from:
           #{HOMEBREW_PREFIX}/lib/ruby
@@ -177,7 +175,7 @@ class Subversion < Formula
       EOS
     end
 
-    if build_java?
+    if build.include? 'java'
       s += <<-EOS.undent
         You may need to link the Java bindings into the Java Extensions folder:
           sudo mkdir -p /Library/Java/Extensions
@@ -186,7 +184,7 @@ class Subversion < Formula
       EOS
     end
 
-    if with_unicode_path?
+    if build.include? 'unicode-path'
       s += <<-EOS.undent
         This unicode-path version implements a hack to deal with composed/decomposed
         unicode handling on Mac OS X which is different from linux and windows.

@@ -1,26 +1,31 @@
 require 'formula'
 
+# Git 1.8.3 has a serious issue with .gitignore files being parsed incorrectly
+# on OS X. This issue has been fixed upstream. Waiting for 1.8.3.1 to update.
+
 class GitManuals < Formula
-  url 'http://git-core.googlecode.com/files/git-manpages-1.8.1.5.tar.gz'
-  sha1 '7f211a2f8fe36180373a20b32eb930018883bfd1'
+  url 'http://git-core.googlecode.com/files/git-manpages-1.8.2.3.tar.gz'
+  sha1 'eb04a2540ff9998e0887a4b862641ac1db723f3e'
 end
 
 class GitHtmldocs < Formula
-  url 'http://git-core.googlecode.com/files/git-htmldocs-1.8.1.5.tar.gz'
-  sha1 '84d832fc70a053e97ce336c4a0af0371461e469f'
+  url 'http://git-core.googlecode.com/files/git-htmldocs-1.8.2.3.tar.gz'
+  sha1 'b8d6b3c4077d37b34bf08b6eb53c4ee5901fa2f9'
 end
 
 class Git < Formula
   homepage 'http://git-scm.com'
-  url 'http://git-core.googlecode.com/files/git-1.8.1.5.tar.gz'
-  sha1 '3349a15de7c5501715bda9b68301d0406272f8e0'
+  url 'http://git-core.googlecode.com/files/git-1.8.2.3.tar.gz'
+  sha1 '2831f7deec472db4d0d0cdffb4d82d91cecdf295'
 
   head 'https://github.com/git/git.git'
 
   option 'with-blk-sha1', 'Compile with the block-optimized SHA1 implementation'
   option 'without-completions', 'Disable bash/zsh completions from "contrib" directory'
 
+  depends_on :python
   depends_on 'pcre' => :optional
+  depends_on 'gettext' => :optional
 
   def install
     # If these things are installed, tell Git build system to not use them
@@ -28,19 +33,21 @@ class Git < Formula
     ENV['NO_DARWIN_PORTS'] = '1'
     ENV['V'] = '1' # build verbosely
     ENV['NO_R_TO_GCC_LINKER'] = '1' # pass arguments to LD correctly
-    ENV['NO_GETTEXT'] = '1'
-    ENV['PERL_PATH'] = which 'perl' # workaround for users of perlbrew
-    ENV['PYTHON_PATH'] = which 'python' # python can be brewed or unbrewed
+    ENV['PYTHON_PATH'] = python.binary if python
+    ENV['PERL_PATH'] = which 'perl'
 
-    # Clean XCode 4.x installs don't include Perl MakeMaker
-    ENV['NO_PERL_MAKEMAKER'] = '1' if MacOS.version >= :lion
+    unless quiet_system ENV['PERL_PATH'], '-e', 'use ExtUtils::MakeMaker'
+      ENV['NO_PERL_MAKEMAKER'] = '1'
+    end
 
     ENV['BLK_SHA1'] = '1' if build.with? 'blk-sha1'
 
     if build.with? 'pcre'
       ENV['USE_LIBPCRE'] = '1'
-      ENV['LIBPCREDIR'] = HOMEBREW_PREFIX
+      ENV['LIBPCREDIR'] = Formula.factory('pcre').opt_prefix
     end
+
+    ENV['NO_GETTEXT'] = '1' unless build.with? 'gettext'
 
     system "make", "prefix=#{prefix}",
                    "CC=#{ENV.cc}",
@@ -93,7 +100,7 @@ class Git < Formula
 
   test do
     HOMEBREW_REPOSITORY.cd do
-      `#{bin}/git ls-files -- bin`.chomp == 'bin/brew'
+      assert_equal 'bin/brew', `#{bin}/git ls-files -- bin`.strip
     end
   end
 end

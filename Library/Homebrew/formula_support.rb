@@ -1,23 +1,28 @@
 require 'download_strategy'
-require 'checksums'
+require 'checksum'
 require 'version'
+
+FormulaConflict = Struct.new(:name, :reason)
 
 class SoftwareSpec
   attr_reader :checksum, :mirrors, :specs
+  attr_reader :using # for auditing
 
   def initialize url=nil, version=nil
     @url = url
     @version = version
     @mirrors = []
     @specs = {}
+    @checksum = nil
+    @using = nil
   end
 
   def download_strategy
-    @download_strategy ||= DownloadStrategyDetector.detect(@url, @using)
+    @download_strategy ||= DownloadStrategyDetector.detect(url, using)
   end
 
   def verify_download_integrity fn
-    fn.verify_checksum @checksum
+    fn.verify_checksum(checksum)
   rescue ChecksumMissingError
     opoo "Cannot verify package integrity"
     puts "The formula did not provide a download checksum"
@@ -33,12 +38,8 @@ class SoftwareSpec
   # The methods that follow are used in the block-form DSL spec methods
   Checksum::TYPES.each do |cksum|
     class_eval <<-EOS, __FILE__, __LINE__ + 1
-      def #{cksum}(val=nil)
-        if val.nil?
-          @checksum if @checksum.nil? or @checksum.hash_type == :#{cksum}
-        else
-          @checksum = Checksum.new(:#{cksum}, val)
-        end
+      def #{cksum}(val)
+        @checksum = Checksum.new(:#{cksum}, val)
       end
     EOS
   end
@@ -62,8 +63,7 @@ class SoftwareSpec
   end
 
   def mirror val
-    @mirrors ||= []
-    @mirrors << val
+    mirrors << val
   end
 end
 
@@ -79,15 +79,13 @@ end
 
 class Bottle < SoftwareSpec
   attr_writer :url
-  # TODO: Can be removed when all bottles migrated to underscored cat symbols.
-  attr_reader :cat_without_underscores
+  attr_rw :root_url, :prefix, :cellar, :revision
 
   def initialize
     super
     @revision = 0
     @prefix = '/usr/local'
     @cellar = '/usr/local/Cellar'
-    @cat_without_underscores = false
   end
 
   # Checksum methods in the DSL's bottle block optionally take
@@ -95,39 +93,19 @@ class Bottle < SoftwareSpec
   Checksum::TYPES.each do |cksum|
     class_eval <<-EOS, __FILE__, __LINE__ + 1
       def #{cksum}(val=nil)
+        return @#{cksum} if val.nil?
         @#{cksum} ||= Hash.new
         case val
-        when nil
-          @#{cksum}[MacOS.cat]
         when Hash
           key, value = val.shift
           @#{cksum}[value] = Checksum.new(:#{cksum}, key)
         end
 
-        if @#{cksum}.has_key? MacOS.cat
-          @checksum = @#{cksum}[MacOS.cat]
-        elsif @#{cksum}.has_key? MacOS.cat_without_underscores
-          @checksum = @#{cksum}[MacOS.cat_without_underscores]
-          @cat_without_underscores = true
+        if @#{cksum}.has_key? bottle_tag
+          @checksum = @#{cksum}[bottle_tag]
         end
       end
     EOS
-  end
-
-  def root_url val=nil
-    val.nil? ? @root_url : @root_url = val
-  end
-
-  def prefix val=nil
-    val.nil? ? @prefix : @prefix = val
-  end
-
-  def cellar val=nil
-    val.nil? ? @cellar : @cellar = val
-  end
-
-  def revision val=nil
-    val.nil? ? @revision : @revision = val
   end
 end
 

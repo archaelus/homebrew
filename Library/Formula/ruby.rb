@@ -3,6 +3,7 @@ require 'formula'
 class Ruby < Formula
   homepage 'http://www.ruby-lang.org/en/'
   url 'http://ftp.ruby-lang.org/pub/ruby/2.0/ruby-2.0.0-p247.tar.bz2'
+  mirror 'http://mirrorservice.org/sites/ftp.ruby-lang.org/pub/ruby/2.0/ruby-2.0.0-p247.tar.bz2'
   sha256 '08e3d4b85b8a1118a8e81261f59dd8b4ddcfd70b6ae554e0ec5ceb99c3185e8a'
 
   head 'http://svn.ruby-lang.org/repos/ruby/trunk/'
@@ -19,8 +20,8 @@ class Ruby < Formula
   end
 
   depends_on 'pkg-config' => :build
-  depends_on 'readline'
-  depends_on 'gdbm'
+  depends_on 'readline' => :recommended
+  depends_on 'gdbm' => :optional
   depends_on 'libyaml'
   depends_on 'openssl' if MacOS.version >= :mountain_lion
   depends_on :x11 if build.with? 'tcltk'
@@ -34,7 +35,7 @@ class Ruby < Formula
 
     args = %W[--prefix=#{prefix} --enable-shared]
     args << "--program-suffix=20" if build.with? "suffix"
-    args << "--with-arch=x86_64,i386" if build.universal?
+    args << "--with-arch=#{Hardware::CPU.universal_archs.join(',')}" if build.universal?
     args << "--with-out-ext=tk" unless build.with? "tcltk"
     args << "--disable-install-doc" unless build.with? "doc"
     args << "--disable-dtrace" unless MacOS::CLT.installed?

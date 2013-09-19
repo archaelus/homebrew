@@ -53,7 +53,7 @@ module Homebrew extend self
     filename = bottle_filename f, bottle_revision
 
     if bottle_filename_formula_name(filename).empty?
-      return ofail "Add a new version regex to version.rb to parse the bottle filename."
+      return ofail "Add a new regex to bottle_version.rb to parse the bottle filename."
     end
 
     bottle_path = Pathname.pwd/filename
@@ -78,7 +78,13 @@ module Homebrew extend self
         # references to the Cellar e.g. Qt's QMake annoyingly does this.
         keg.relocate_install_names prefix, tmp_prefix, cellar, tmp_cellar
 
-        relocatable = !keg_contains(HOMEBREW_PREFIX, keg)
+        if prefix == '/usr/local'
+          prefix_check = HOMEBREW_PREFIX/'opt'
+        else
+          prefix_check = HOMEBREW_PREFIX
+        end
+
+        relocatable = !keg_contains(prefix_check, keg)
         relocatable = !keg_contains(HOMEBREW_CELLAR, keg) if relocatable
 
         # And do the same thing in reverse to change the library references

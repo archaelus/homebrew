@@ -1,6 +1,6 @@
 require 'formula'
 require 'utils'
-require 'superenv'
+require 'extend/ENV'
 require 'formula_cellar_checks'
 
 module Homebrew extend self
@@ -8,6 +8,7 @@ module Homebrew extend self
     formula_count = 0
     problem_count = 0
 
+    ENV.activate_extensions!
     ENV.setup_build_environment
 
     ff = if ARGV.named.empty?
@@ -127,7 +128,8 @@ class FormulaAuditor
     # Don't depend_on aliases; use full name
     @@aliases ||= Formula.aliases
     f.deps.select { |d| @@aliases.include? d.name }.each do |d|
-      problem "Dependency #{d} is an alias; use the canonical name."
+      real_name = d.to_formula.name
+      problem "Dependency '#{d}' is an alias; use the canonical name '#{real_name}'."
     end
 
     # Check for things we don't like to depend on.
@@ -281,9 +283,6 @@ class FormulaAuditor
         version_url = Version.detect(s.url, s.specs)
         if version_url.to_s == version_text.to_s && s.version.instance_of?(Version)
           problem "#{spec} version #{version_text} is redundant with version scanned from URL"
-        end
-        if bottle_filename_formula_name(bottle_filename(f)).empty?
-          problem "Add a new version regex to version.rb to parse the bottle filename."
         end
       end
 
@@ -569,13 +568,7 @@ class FormulaAuditor
       end
     end
 
-    if f.requirements.any?{ |r| r.kind_of?(PythonInstalled) }
-      # Don't check this for all formulae, because some are allowed to set the
-      # PYTHONPATH. E.g. python.rb itself needs to set it.
-      if text =~ /ENV\.append.*PYTHONPATH/ || text =~ /ENV\[['"]PYTHONPATH['"]\]\s*=[^=]/
-        problem "Don't set the PYTHONPATH, instead declare `depends_on :python`"
-      end
-    else
+    unless f.requirements.any?{ |r| r.kind_of?(PythonInstalled) }
       # So if there is no PythonInstalled requirement, we can check if the
       # formula still uses python and should add a `depends_on :python`
       unless f.name.to_s =~ /(pypy[0-9]*)|(python[0-9]*)/
@@ -599,8 +592,8 @@ class FormulaAuditor
 
   def audit_check_output warning_and_description
     return unless warning_and_description
-    warning, _ = *warning_and_description
-    problem warning
+    warning, description = *warning_and_description
+    problem "#{warning}\n#{description}"
   end
 
   def audit_installed

@@ -13,6 +13,8 @@ class Haproxy < Formula
 
   depends_on 'pcre'
 
+  option "halog", "Install halog utility"
+
   def install
     args = ["TARGET=generic",
             "USE_KQUEUE=1",
@@ -29,5 +31,12 @@ class Haproxy < Formula
     system "make", "CC=#{ENV.cc}", "CFLAGS=#{ENV.cflags}", "LDFLAGS=#{ENV.ldflags}", *args
     man1.install "doc/haproxy.1"
     bin.install "haproxy"
+
+    if build.include? 'halog' then
+      cd 'contrib/halog' do
+        system "make", "CC=#{ENV.cc}", "CFLAGS=#{ENV.cflags}", "LDFLAGS=#{ENV.ldflags}", *args
+        bin.install "halog"
+      end
+    end
   end
 end

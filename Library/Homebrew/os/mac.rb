@@ -209,7 +209,7 @@ module OS
     end
 
     def prefer_64_bit?
-      Hardware::CPU.is_64_bit? and version != :leopard
+      Hardware::CPU.is_64_bit? and version > :leopard
     end
 
     def preferred_arch
@@ -243,6 +243,7 @@ module OS
       "4.6.3" => { :llvm_build => 2336, :clang => "4.2", :clang_build => 425 },
       "5.0"   => { :clang => "5.0", :clang_build => 500 },
       "5.0.1" => { :clang => "5.0", :clang_build => 500 },
+      "5.0.2" => { :clang => "5.0", :clang_build => 500 },
     }
 
     def compilers_standard?

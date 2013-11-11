@@ -8,8 +8,14 @@ class Spidermonkey < Formula
 
   head 'https://hg.mozilla.org/tracemonkey/archive/tip.tar.gz'
 
+  conflicts_with 'narwhal', :because => 'both install a js binary'
+
   depends_on 'readline'
   depends_on 'nspr'
+
+  # spidermonkey builds using libstdc++ with clang in superenv
+  # TODO fix this under superenv
+  env :std
 
   def install
     # aparently this flag causes the build to fail for ivanvc on 10.5 with a

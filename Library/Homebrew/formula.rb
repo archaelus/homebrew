@@ -585,6 +585,7 @@ class Formula
 
     rd, wr = IO.pipe
     fork do
+      ENV['HOMEBREW_CC_LOG_PATH'] = logfn
       rd.close
       $stdout.reopen wr
       $stderr.reopen wr
@@ -602,6 +603,8 @@ class Formula
       end
 
       Process.wait
+
+      $stdout.flush
 
       unless $?.success?
         f.flush

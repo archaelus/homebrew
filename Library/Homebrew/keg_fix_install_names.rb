@@ -39,6 +39,32 @@ class Keg
         end
       end
     end
+
+    # Search for pkgconfig .pc files and relocate references to the cellar
+    old_cellar = "#{old_prefix}/Cellar" if old_cellar == :any
+
+    pkgconfig_files.each do |pcfile|
+      pcfile.ensure_writable do
+        pcfile.open('rb') do |f|
+          s = f.read
+          replace_pkgconfig_file_path(s, old_cellar, new_cellar)
+          replace_pkgconfig_file_path(s, old_prefix, new_prefix)
+          f.reopen(pcfile, 'wb')
+          f.write(s)
+        end
+      end
+    end
+  end
+
+  # Given old == "/usr/local/Cellar" and new == "/opt/homebrew/Cellar",
+  # then update lines of the form
+  #   some_variable=/usr/local/Cellar/foo/1.0/lib
+  # to
+  #   some_variable="/opt/homebrew/Cellar/foo/1.0/lib"
+  # and add quotes to protect against paths containing spaces.
+  def replace_pkgconfig_file_path(s, old, new)
+    return if old == new
+    s.gsub!(%r[([\S]+)="?#{Regexp.escape(old)}(.*?)"?$], "\\1=\"#{new}\\2\"")
   end
 
   # Detects the C++ dynamic libraries in place, scanning the dynamic links
@@ -142,5 +168,25 @@ class Keg
     end
 
     mach_o_files
+  end
+
+  def pkgconfig_files
+    pkgconfig_files = []
+
+    # find .pc files, which are stored in lib/pkgconfig
+    pc_dir = self/'lib/pkgconfig'
+    if pc_dir.directory?
+      pc_dir.find do |pn|
+        next if pn.symlink? or pn.directory? or pn.extname.to_s != '.pc'
+        pkgconfig_files << pn
+      end
+    end
+
+    # find name-config scripts, which can be all over the keg
+    Pathname.new(self).find do |pn|
+      next if pn.symlink? or pn.directory?
+      pkgconfig_files << pn if pn.text_executable? and pn.basename.to_s.end_with? '-config'
+    end
+    pkgconfig_files
   end
 end

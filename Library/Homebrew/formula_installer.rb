@@ -17,6 +17,7 @@ class FormulaInstaller
   attr_reader :f
   attr_accessor :tab, :options, :ignore_deps
   attr_accessor :show_summary_heading, :show_header
+  attr_reader :unsatisfied_deps
 
   def initialize ff
     @f = ff
@@ -24,6 +25,7 @@ class FormulaInstaller
     @ignore_deps = ARGV.ignore_deps? || ARGV.interactive?
     @options = Options.new
     @tab = Tab.dummy_tab(ff)
+    @unsatisfied_deps = []
 
     @@attempted ||= Set.new
 
@@ -32,6 +34,7 @@ class FormulaInstaller
   end
 
   def pour_bottle? install_bottle_options={:warn=>false}
+    return false if @pour_failed
     tab.used_options.empty? && options.empty? && \
       install_bottle?(f, install_bottle_options)
   end
@@ -99,11 +102,7 @@ class FormulaInstaller
 
     check_conflicts
 
-    unless ignore_deps
-      perform_readline_hack
-      check_requirements
-      install_dependencies
-    end
+    compute_and_install_dependencies unless ignore_deps
 
     if ARGV.build_bottle? && (arch = ARGV.bottle_arch) && !Hardware::CPU.optimization_flags.include?(arch)
       raise "Unrecognized architecture for --bottle-arch: #{arch}"
@@ -131,12 +130,14 @@ class FormulaInstaller
       end
     rescue
       raise if ARGV.homebrew_developer?
+      @pour_failed = true
       opoo "Bottle installation failed: building from source."
     end
 
     build_bottle_preinstall if ARGV.build_bottle?
 
     unless @poured_bottle
+      compute_and_install_dependencies if @pour_failed and not ignore_deps
       build
       clean
     end
@@ -171,6 +172,12 @@ class FormulaInstaller
     raise FormulaConflictError.new(f, conflicts) unless conflicts.empty?
   end
 
+  def compute_and_install_dependencies
+    perform_readline_hack
+    check_requirements
+    install_dependencies
+  end
+
   def check_requirements
     unsatisfied = ARGV.filter_for_dependencies do
       f.recursive_requirements do |dependent, req|
@@ -181,7 +188,7 @@ class FormulaInstaller
         elsif req.satisfied?
           Requirement.prune
         elsif req.default_formula?
-          dependent.deps << req.to_dependency
+          unsatisfied_deps << req.to_dependency
           Requirement.prune
         else
           puts "#{dependent}: #{req.message}"
@@ -231,23 +238,23 @@ class FormulaInstaller
     f.recursive_dependencies.select { |d| deps.include? d }
   end
 
-  def effective_deps
-    @effective_deps ||= filter_deps
-  end
-
   def install_dependencies
-    if effective_deps.length > 1
-      oh1 "Installing dependencies for #{f}: #{Tty.green}#{effective_deps*", "}#{Tty.reset}"
+    unsatisfied_deps.concat(filter_deps)
+
+    if unsatisfied_deps.length > 1
+      oh1 "Installing dependencies for #{f}: #{Tty.green}#{unsatisfied_deps*", "}#{Tty.reset}"
     end
 
-    effective_deps.each do |dep|
+    unsatisfied_deps.each do |dep|
       if dep.requested?
        install_dependency(dep)
       else
         ARGV.filter_for_dependencies { install_dependency(dep) }
       end
     end
-    @show_header = true unless effective_deps.empty?
+    @show_header = true unless unsatisfied_deps.empty?
+  ensure
+    unsatisfied_deps.clear
   end
 
   def install_dependency dep
@@ -309,7 +316,7 @@ class FormulaInstaller
 
     ohai "Summary" if ARGV.verbose? or show_summary_heading
     unless ENV['HOMEBREW_NO_EMOJI']
-      print "\xf0\x9f\x8d\xba  " if MacOS.version >= :lion
+      print "#{ENV['HOMEBREW_INSTALL_BADGE'] || "\xf0\x9f\x8d\xba"}  " if MacOS.version >= :lion
     end
     print "#{f.prefix}: #{f.prefix.abv}"
     print ", built in #{pretty_duration build_time}" if build_time
@@ -550,7 +557,7 @@ end
 
 class Formula
   def keg_only_text
-    s = "This formula is keg-only: so it was not symlinked into #{HOMEBREW_PREFIX}."
+    s = "This formula is keg-only, so it was not symlinked into #{HOMEBREW_PREFIX}."
     s << "\n\n#{keg_only_reason.to_s}"
     if lib.directory? or include.directory?
       s <<

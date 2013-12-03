@@ -34,7 +34,7 @@ class Erlang < Formula
   # may as well skip bin too, everything is just shell scripts
   skip_clean ['lib', 'bin']
 
-  # remove the autoreconf if possible
+  depends_on :autoconf
   depends_on :automake
   depends_on :libtool
   depends_on 'unixodbc' if MacOS.version >= :mavericks
@@ -47,6 +47,12 @@ class Erlang < Formula
   option 'halfword', 'Enable halfword emulator (64-bit builds only)'
   option 'time', '`brew test --time` to include a time-consuming test'
   option 'no-docs', 'Do not install documentation'
+
+  def patches
+    # Fixes problem with ODBC on Mavericks. Reported upstream:
+    # https://github.com/erlang/otp/pull/142
+    DATA if MacOS.version >= :mavericks
+  end
 
   def install
     ohai "Compilation takes a long time; use `brew install -v erlang` to see progress" unless ARGV.verbose?
@@ -115,3 +121,17 @@ class Erlang < Formula
     end
   end
 end
+__END__
+diff --git a/lib/odbc/configure.in b/lib/odbc/configure.in
+index 83f7a47..fd711fe 100644
+--- a/lib/odbc/configure.in
++++ b/lib/odbc/configure.in
+@@ -130,7 +130,7 @@ AC_SUBST(THR_LIBS)
+ odbc_lib_link_success=no
+ AC_SUBST(TARGET_FLAGS)
+     case $host_os in
+-        darwin*)
++        darwin1[[0-2]].*|darwin[[0-9]].*)
+                 TARGET_FLAGS="-DUNIX"
+                if test ! -d "$with_odbc" || test "$with_odbc" = "yes"; then
+                    ODBC_LIB= -L"/usr/lib"

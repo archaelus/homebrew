@@ -12,6 +12,7 @@ class Ghostscript < Formula
       url 'git://git.code.sf.net/p/djvu/gsdjvu-git'
     end
 
+    depends_on :autoconf
     depends_on :automake
     depends_on :libtool
   end
@@ -26,6 +27,7 @@ class Ghostscript < Formula
   depends_on :libpng
   depends_on :x11 => ['2.7.2', :optional]
   depends_on 'djvulibre' if build.with? 'djvu'
+  depends_on 'freetype' if MacOS.version == :snow_leopard
 
   conflicts_with 'gambit-scheme', :because => 'both install `gsc` binaries'
 

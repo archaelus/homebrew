@@ -29,9 +29,23 @@ class Mariadb < Formula
 
   env :std if build.universal?
 
+  def patches
+    if build.devel?
+      [
+        # Prevent name collision leading to compilation failure. See:
+        # issue #24489, upstream: https://mariadb.atlassian.net/browse/MDEV-5314
+        'https://gist.github.com/makigumo/7735363/raw/e7b1bc368dbf0517ccae64947e4ef9d5fa00f51c/mariadb-10.0.6.mac.patch',
+        # Cherry-picked from upstream.
+        # http://bazaar.launchpad.net/~maria-captains/maria/10.0-base/revision/3941#support-files/CMakeLists.txt
+        # Resolved in 10.0.7, see: https://mariadb.atlassian.net/browse/MDEV-5314
+        'https://gist.github.com/makigumo/7735363/raw/d7f475d7937f51d7d18c35dd3dd424d74f0284f3/mariadb-10.0.6.mac.2.patch'
+      ]
+    end
+  end
+
   def install
     # Don't hard-code the libtool path. See:
-    # https://github.com/mxcl/homebrew/issues/20185
+    # https://github.com/Homebrew/homebrew/issues/20185
     inreplace "cmake/libutils.cmake",
       "COMMAND /usr/bin/libtool -static -o ${TARGET_LOCATION}",
       "COMMAND libtool -static -o ${TARGET_LOCATION}"
@@ -88,13 +102,14 @@ class Mariadb < Formula
     system "make install"
 
     # Fix my.cnf to point to #{etc} instead of /etc
+    (etc+'my.cnf.d').mkpath
     inreplace "#{etc}/my.cnf" do |s|
       s.gsub!("!includedir /etc/my.cnf.d", "!includedir #{etc}/my.cnf.d")
     end
 
     unless build.include? 'client-only'
       # Don't create databases inside of the prefix!
-      # See: https://github.com/mxcl/homebrew/issues/4975
+      # See: https://github.com/Homebrew/homebrew/issues/4975
       rm_rf prefix+'data'
 
       (prefix+'mysql-test').rmtree unless build.with? 'tests' # save 121MB!

@@ -32,8 +32,8 @@ end
 # Note that x.even are stable releases, x.odd are devel releases
 class Node < Formula
   homepage 'http://nodejs.org/'
-  url 'http://nodejs.org/dist/v0.10.23/node-v0.10.23.tar.gz'
-  sha1 '8717942d1bdfa8902ce65cd33b4293d16b486c64'
+  url 'http://nodejs.org/dist/v0.10.24/node-v0.10.24.tar.gz'
+  sha1 'd162d01eb173cb5a0e7e46c9d706421c4c771039'
 
   devel do
     url 'http://nodejs.org/dist/v0.11.9/node-v0.11.9.tar.gz'
@@ -46,7 +46,7 @@ class Node < Formula
   option 'without-npm', 'npm will not be installed'
 
   depends_on NpmNotInstalled unless build.without? 'npm'
-  depends_on :python => ["2.6", :build]
+  depends_on Python27Dependency # gyp doesn't run under 2.6 or lower
 
   fails_with :llvm do
     build 2326
@@ -111,7 +111,7 @@ end
 
 __END__
 diff --git a/tools/gyp/pylib/gyp/xcode_emulation.py b/tools/gyp/pylib/gyp/xcode_emulation.py
-index 520dcc4..bcc6c71 100644
+index 520dcc4..531e755 100644
 --- a/tools/gyp/pylib/gyp/xcode_emulation.py
 +++ b/tools/gyp/pylib/gyp/xcode_emulation.py
 @@ -280,7 +280,14 @@ class XcodeSettings(object):
@@ -174,10 +174,11 @@ index 520dcc4..bcc6c71 100644
  
    def AdjustLibraries(self, libraries, config_name=None):
      """Transforms entries like 'Cocoa.framework' in libraries into entries like
-@@ -856,6 +868,26 @@ class XcodeSettings(object):
+@@ -856,6 +868,27 @@ class XcodeSettings(object):
    def _BuildMachineOSBuild(self):
      return self._GetStdout(['sw_vers', '-buildVersion'])
  
++  # This method ported from the logic in Homebrew's CLT version check
 +  def _CLTVersion(self):
 +    # pkgutil output looks like
 +    #   package-id: com.apple.pkg.CLTools_Executables
@@ -201,17 +202,27 @@ index 520dcc4..bcc6c71 100644
    def _XcodeVersion(self):
      # `xcodebuild -version` output looks like
      #    Xcode 4.6.3
-@@ -866,13 +898,20 @@ class XcodeSettings(object):
+@@ -866,13 +899,30 @@ class XcodeSettings(object):
      #    BuildVersion: 10M2518
      # Convert that to '0463', '4H1503'.
      if len(XcodeSettings._xcode_version_cache) == 0:
 -      version_list = self._GetStdout(['xcodebuild', '-version']).splitlines()
 +      try:
 +        version_list = self._GetStdout(['xcodebuild', '-version']).splitlines()
++        # In some circumstances xcodebuild exits 0 but doesn't return
++        # the right results; for example, a user on 10.7 or 10.8 with
++        # a bogus path set via xcode-select
++        # In that case this may be a CLT-only install so fall back to
++        # checking that version.
++        if len(version_list) < 2:
++          raise GypError, "xcodebuild returned unexpected results"
 +      except:
 +        version = self._CLTVersion()
 +        if version:
 +          version = re.match('(\d\.\d\.?\d*)', version).groups()[0]
++        else:
++          raise GypError, "No Xcode or CLT version detected!"
++        # The CLT has no build information, so we return an empty string.
 +        version_list = [version, '']
        version = version_list[0]
        build = version_list[-1]
@@ -224,7 +235,7 @@ index 520dcc4..bcc6c71 100644
        XcodeSettings._xcode_version_cache = (version, build)
      return XcodeSettings._xcode_version_cache
  
-@@ -930,7 +969,11 @@ class XcodeSettings(object):
+@@ -930,7 +980,11 @@ class XcodeSettings(object):
      default_sdk_root = XcodeSettings._sdk_root_cache.get(default_sdk_path)
      if default_sdk_root:
        return default_sdk_root

@@ -2,13 +2,13 @@ require "formula"
 
 class Frescobaldi < Formula
   homepage "http://frescobaldi.org/"
-  url "https://lilykde.googlecode.com/files/frescobaldi-2.0.10.tar.gz"
-  sha1 "17928c20fe3cda934cbff88872a1904a5b8994a3"
+  url "https://github.com/wbsoft/frescobaldi/releases/download/v2.0.13/frescobaldi-2.0.13.tar.gz"
+  sha1 "8d3f0ceb0d5cc66b6bee6278fc2dad07e3f361f8"
 
   option "without-launcher", "Don't build Mac .app launcher"
   option "without-lilypond", "Don't install Lilypond"
 
-  depends_on :python2
+  depends_on :python
   depends_on "portmidi" => :recommended
   depends_on "lilypond" => :recommended
   depends_on "platypus" => :build if build.with? "launcher"
@@ -24,27 +24,14 @@ class Frescobaldi < Formula
   end
 
   def install
-    python do
-      resource("python-poppler-qt4").stage do
-        system "python", "setup.py", "build"
-        system "python", "setup.py", "install"
-      end
-      system "python", "setup.py", "install", "--prefix=#{prefix}"
+    resource("python-poppler-qt4").stage do
+      system "python", "setup.py", "build"
+      system "python", "setup.py", "install"
     end
+    system "python", "setup.py", "install", "--prefix=#{prefix}"
     if build.with? "launcher"
       system "platypus", "-aFrescobaldi", "-oNone",
              bin/"frescobaldi", bin/"Frescobaldi.app"
-    end
-  end
-
-  def caveats
-    if build.with? "launcher"
-      <<-EOS.undent
-        To install the Mac OS X launcher application run:
-          brew linkapps (to install in ~/Applications)
-        or:
-          ln -s #{bin}/Frescobaldi.app /Applications
-      EOS
     end
   end
 end

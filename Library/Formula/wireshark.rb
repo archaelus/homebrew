@@ -21,7 +21,7 @@ class Wireshark < Formula
 
   option 'with-x', 'Include X11 support'
   option 'with-qt', 'Use QT for GUI instead of GTK+'
-  option 'install-headers', 'Install c header files'
+  option 'with-headers', 'Install Wireshark library headers for plug-in developemnt'
 
   depends_on 'pkg-config' => :build
 
@@ -43,12 +43,12 @@ class Wireshark < Formula
   end
 
   def patches
-    {
+    if build.stable?
       # Removes SDK checks that prevent the build from working on CLT-only systems
       # Reported upstream: https://bugs.wireshark.org/bugzilla/show_bug.cgi?id=9290
-      :p1 => DATA
-    }
-  end if build.stable?
+      { :p1 => DATA }
+    end
+  end
 
   def install
     system "./autogen.sh" if build.head?
@@ -68,18 +68,17 @@ class Wireshark < Formula
     system "make"
     ENV.deparallelize # parallel install fails
     system "make install"
-    if ARGV.include? '--install-headers' then
-      # headers
-      inc = include + 'wireshark'
-      inc.install Dir['*.h']
-      epan = inc + 'epan'
-      epan.install Dir['epan/*.h']
 
-      ['crypt','dfilter','dissectors','ftypes'].each { |d|
-        (epan + d).install Dir['epan/' + d + '/*.h']
-      }
-
-      (inc + 'wiretap').install Dir['wiretap/*.h']
+    if build.with? 'headers'
+        (include/"wireshark").install Dir["*.h"]
+        (include/"wireshark/epan").install Dir["epan/*.h"]
+        (include/"wireshark/epan/crypt").install Dir["epan/crypt/*.h"]
+        (include/"wireshark/epan/dfilter").install Dir["epan/dfilter/*.h"]
+        (include/"wireshark/epan/dissectors").install Dir["epan/dissectors/*.h"]
+        (include/"wireshark/epan/ftypes").install Dir["epan/ftypes/*.h"]
+        (include/"wireshark/epan/wmem").install Dir["epan/wmem/*.h"]
+        (include/"wireshark/wiretap").install Dir["wiretap/*.h"]
+        (include/"wireshark/wsutil").install Dir["wsutil/*.h"]
     end
   end
 

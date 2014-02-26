@@ -11,6 +11,9 @@ class Luarocks < Formula
 
   if build.include? 'with-luajit'
     depends_on 'luajit'
+    # luajit depends internally on lua being installed
+    # and is only 5.1 compatible, see #25954
+    depends_on 'lua'
   elsif build.include? 'with-lua52'
     depends_on 'lua52'
   else
@@ -55,7 +58,7 @@ class Luarocks < Formula
     EOS
   end
 
-  def test
+  test do
     opoo "Luarocks test script installs 'lpeg'"
     system "#{bin}/luarocks", "install", "lpeg"
     system "lua", "-llpeg", "-e", 'print ("Hello World!")'

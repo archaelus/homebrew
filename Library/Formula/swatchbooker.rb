@@ -7,7 +7,7 @@ class Swatchbooker < Formula
 
   depends_on :python
   depends_on 'PIL' => :python
-  #depends_on 'little-cms' => 'with-python'
+  depends_on 'little-cms' => 'with-python'
   depends_on 'pyqt'
 
   def patches
@@ -25,7 +25,7 @@ class Swatchbooker < Formula
     chmod 0755, libexec/'bin/swatchbooker'
   end
 
-  def test
+  test do
     system "#{bin}/swatchbooker"
   end
 end

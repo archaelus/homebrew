@@ -2,7 +2,7 @@ require 'formula'
 
 class Pyqt5 < Formula
   homepage 'http://www.riverbankcomputing.co.uk/software/pyqt/download5'
-  url 'http://downloads.sf.net/project/pyqt/PyQt5/PyQt-5.2/PyQt-gpl-5.2.tar.gz'
+  url 'https://downloads.sf.net/project/pyqt/PyQt5/PyQt-5.2/PyQt-gpl-5.2.tar.gz'
   sha1 'a1c232d34ab268587c127ad3097c725ee1a70cf0'
 
   option 'enable-debug', "Build with debug symbols"
@@ -47,6 +47,9 @@ class Pyqt5 < Formula
                "--sipdir=#{share}/sip/Qt5/",
                # sip.h could not be found automatically
                "--sip-incdir=#{Formula["sip"].opt_prefix}/include",
+               # Make sure the qt5 version of qmake is found.
+               # If qt4 is linked it will pickup that version otherwise.
+               "--qmake=#{Formula["qt5"].bin}/qmake",
                # Force deployment target to avoid libc++ issues
                "QMAKE_MACOSX_DEPLOYMENT_TARGET=#{MacOS.version}" ]
       args << '--debug' if build.include? 'enable-debug'

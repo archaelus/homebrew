@@ -10,11 +10,11 @@ class Tty
     def blue; bold 34; end
     def white; bold 39; end
     def red; underline 31; end
-    def yellow; underline 33 ; end
+    def yellow; underline 33; end
     def reset; escape 0; end
     def em; underline 39; end
-    def green; color 92 end
-    def gray; bold 30 end
+    def green; bold 32; end
+    def gray; bold 30; end
 
     def width
       `/usr/bin/tput cols`.strip.to_i
@@ -146,14 +146,6 @@ def curl *args
   args << "--silent" unless $stdout.tty?
 
   safe_system curl, *args
-end
-
-# Run scons using a Homebrew-installed version, instead of whatever
-# is in the user's PATH
-def scons *args
-  scons = Formulary.factory("scons").opt_prefix/'bin/scons'
-  raise "#{scons} is not executable" unless scons.exist? and scons.executable?
-  safe_system scons, *args
 end
 
 def puts_columns items, star_items=[]

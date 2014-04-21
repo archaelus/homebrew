@@ -2,18 +2,13 @@ require "formula"
 
 class Influxdb < Formula
   homepage "http://influxdb.org"
-  url "http://get.influxdb.org/influxdb-0.4.1.src.tar.gz"
-  sha1 "f452cfce6e08f56e0fd6071d2a127446c165e08b"
+  url "http://get.influxdb.org/influxdb-0.5.8.src.tar.gz"
+  sha1 "6ff5de891d6c3ce990469af3a00da2c730fccf62"
 
   bottle do
-    sha1 "90d21ae22304b058954ce5deaba6b3f9c77eb16c" => :mavericks
-    sha1 "d38c2781c2f81cb2ad5ad12e8789d511235ec908" => :mountain_lion
-    sha1 "be6df288b6d385c27e48ba221a12970be0eb0beb" => :lion
-  end
-
-  devel do
-    url "http://get.influxdb.org/influxdb-0.5.0-rc.3.src.tar.gz"
-    sha1 "480d9c356e4075a865477e9fc3e02ec6750856fd"
+    sha1 "a00b5312e5286668d8050240c180e4779e195c37" => :mavericks
+    sha1 "9762e9bea7ec7df82bfc87f311705a6a86f34e29" => :mountain_lion
+    sha1 "48b32e1336dccc7237298ca65c7f5669de44e172" => :lion
   end
 
   depends_on "leveldb"
@@ -32,14 +27,15 @@ class Influxdb < Formula
     system "make", "dependencies", "protobuf", "parser"
     system "go", "build", "daemon"
 
-    inreplace "config.toml.sample" do |s|
+    inreplace "config.sample.toml" do |s|
       s.gsub! "/tmp/influxdb/development/db", "#{var}/influxdb/data"
       s.gsub! "/tmp/influxdb/development/raft", "#{var}/influxdb/raft"
-      s.gsub! "./admin", "#{opt_prefix}/share/admin"
+      s.gsub! "/tmp/influxdb/development/wal", "#{var}/influxdb/wal"
+      s.gsub! "./admin", "#{opt_share}/admin"
     end
 
     bin.install "daemon" => "influxdb"
-    etc.install "config.toml.sample" => "influxdb.conf"
+    etc.install "config.sample.toml" => "influxdb.conf"
     share.install "admin"
 
     (var/"influxdb/data").mkpath
@@ -62,7 +58,7 @@ class Influxdb < Formula
         <string>#{plist_name}</string>
         <key>ProgramArguments</key>
         <array>
-          <string>#{opt_prefix}/bin/influxdb</string>
+          <string>#{opt_bin}/influxdb</string>
           <string>-config=#{etc}/influxdb.conf</string>
         </array>
         <key>RunAtLoad</key>

@@ -27,14 +27,11 @@ class Openvpn < Formula
     system "make install"
 
     # Adjust sample file paths
-    inreplace ["sample/sample-config-files/openvpn-startup.sh"] do |s|
-      s.gsub! "/etc/openvpn", etc+'openvpn'
-    end
+    inreplace "sample/sample-config-files/openvpn-startup.sh",
+      "/etc/openvpn", "#{etc}/openvpn"
 
     # Install sample files
-    Dir['sample/sample-*'].each do |d|
-      (share + 'doc/openvpn' + d).install Dir[d+'/*']
-    end
+    (doc/"sample").install Dir["sample/sample-*"]
 
     # Create etc & var paths
     (etc + 'openvpn').mkpath
@@ -61,7 +58,7 @@ class Openvpn < Formula
       <string>#{plist_name}</string>
       <key>ProgramArguments</key>
       <array>
-        <string>#{opt_prefix}/sbin/openvpn</string>
+        <string>#{opt_sbin}/openvpn</string>
         <string>--config</string>
         <string>#{etc}/openvpn/openvpn.conf</string>
       </array>

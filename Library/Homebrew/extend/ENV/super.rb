@@ -46,7 +46,7 @@ module Superenv
   def reset
     %w{CC CXX OBJC OBJCXX CPP MAKE LD LDSHARED
       CFLAGS CXXFLAGS OBJCFLAGS OBJCXXFLAGS LDFLAGS CPPFLAGS
-      MACOSX_DEPLOYMENT_TARGET SDKROOT
+      MACOSX_DEPLOYMENT_TARGET SDKROOT DEVELOPER_DIR
       CMAKE_PREFIX_PATH CMAKE_INCLUDE_PATH CMAKE_FRAMEWORK_PATH
       CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH OBJC_INCLUDE_PATH}.
       each{ |x| delete(x) }
@@ -65,7 +65,6 @@ module Superenv
     self.cc  = self['HOMEBREW_CC']  = determine_cc
     self.cxx = self['HOMEBREW_CXX'] = determine_cxx
     validate_cc!(formula) unless formula.nil?
-    self['DEVELOPER_DIR'] = determine_developer_dir
     self['MAKEFLAGS'] ||= "-j#{determine_make_jobs}"
     self['PATH'] = determine_path
     self['PKG_CONFIG_PATH'] = determine_pkg_config_path
@@ -76,7 +75,6 @@ module Superenv
     self['HOMEBREW_PREFIX'] = HOMEBREW_PREFIX
     self['HOMEBREW_TEMP'] = HOMEBREW_TEMP
     self['HOMEBREW_SDKROOT'] = "#{MacOS.sdk_path}" if MacOS::Xcode.without_clt?
-    self['HOMEBREW_DEVELOPER_DIR'] = determine_developer_dir # used by our xcrun shim
     self['HOMEBREW_OPTFLAGS'] = determine_optflags
     self['CMAKE_PREFIX_PATH'] = determine_cmake_prefix_path
     self['CMAKE_FRAMEWORK_PATH'] = determine_cmake_frameworks_path
@@ -84,7 +82,6 @@ module Superenv
     self['CMAKE_LIBRARY_PATH'] = determine_cmake_library_path
     self['ACLOCAL_PATH'] = determine_aclocal_path
     self['M4'] = MacOS.locate("m4") if deps.include? "autoconf"
-    self['PYTHONDONTWRITEBYTECODE'] = "1" if ARGV.build_bottle?
 
     # The HOMEBREW_CCCFG ENV variable is used by the ENV/cc tool to control
     # compiler flag stripping. It consists of a string of characters which act
@@ -225,13 +222,6 @@ module Superenv
     s
   end
 
-  def determine_developer_dir
-    # If Xcode path is fucked then this is basically a fix. In the case where
-    # nothing is valid, it still fixes most usage to supply a valid path that
-    # is not "/".
-    MacOS::Xcode.prefix || self['DEVELOPER_DIR']
-  end
-
   public
 
   def deparallelize
@@ -294,6 +284,10 @@ module Superenv
     if self['HOMEBREW_CC'] == 'clang'
       append 'HOMEBREW_CCCFG', "h", ''
     end
+  end
+
+  def refurbish_args
+    append 'HOMEBREW_CCCFG', "O", ''
   end
 
   # m32 on superenv does not add any CC flags. It prevents "-m32" from being erased.

@@ -29,7 +29,7 @@ class AppscaleTools < Formula
   end
 
   resource 'argparse' do
-    url 'http://argparse.googlecode.com/files/argparse-1.2.1.tar.gz'
+    url 'https://argparse.googlecode.com/files/argparse-1.2.1.tar.gz'
     sha1 'caadac82aa2576d6b445058c1fcf6ef0b14dbaa1'
   end
 
@@ -67,10 +67,8 @@ class AppscaleTools < Formula
     resource('httplib2').stage { system "python", *install_args }
     resource('python-gflags').stage { system "python", *install_args }
 
-    Dir['bin/appscale*'].each do |command_file|
-      inreplace command_file do |s|
-        s.gsub! /^lib = os.*/, "lib = '#{libexec}'"
-      end
+    inreplace Dir["bin/appscale*"] do |s|
+      s.gsub! /^lib = os.*/, "lib = '#{libexec}'"
     end
 
     prefix.install 'bin', 'templates', 'LICENSE', 'README.md'

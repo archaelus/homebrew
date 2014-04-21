@@ -5,8 +5,8 @@ class YoutubeDl < Formula
   # Please only update to versions that are published on PyPi as there are too
   # many releases for us to update to every single one:
   # https://pypi.python.org/pypi/youtube_dl
-  url 'https://yt-dl.org/downloads/2014.02.28/youtube-dl-2014.02.28.tar.gz'
-  sha1 'b050f4cca969cbcc3ed24ef94bc6610525be07d7'
+  url 'https://yt-dl.org/downloads/2014.04.04.7/youtube-dl-2014.04.04.7.tar.gz'
+  sha1 '5f1b62eb5760fe98c0430033db83bb090f5ee9ad'
 
   depends_on 'rtmpdump' => :optional
 

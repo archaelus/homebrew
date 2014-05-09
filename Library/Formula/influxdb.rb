@@ -2,13 +2,13 @@ require "formula"
 
 class Influxdb < Formula
   homepage "http://influxdb.org"
-  url "http://get.influxdb.org/influxdb-0.5.10.src.tar.gz"
-  sha1 "da1a3ed48f0b2b86b72e4bb64917ec22bc9ca9c2"
+  url "http://get.influxdb.org/influxdb-0.6.1.src.tar.gz"
+  sha1 "4cc0f075fcd5437858d40169373555ce4f12339a"
 
   bottle do
-    sha1 "c12614969da13cf850652c0a88f39da23240dfc7" => :mavericks
-    sha1 "0af524e9bf83af4fba2b8486ab0233be861ecf4e" => :mountain_lion
-    sha1 "58b50bd941098a813f89f44fdbb3f0b20d440a6e" => :lion
+    sha1 "36a5a5d835e42b4122bab09519706cfc2a626a45" => :mavericks
+    sha1 "fea376078b79df14e65e2b78ba90bcfe99dcc14b" => :mountain_lion
+    sha1 "0f05488382be0308f5906d4b88e607eb2d53ad97" => :lion
   end
 
   depends_on "leveldb"
